@@ -362,6 +362,8 @@ class AnchorLoader(mx.io.DataIter):
 
         # add gt_boxes to data for e2e
         data['gt_boxes'] = label['gt_boxes'][np.newaxis, :, :]
+        data['bef_delta'] = label['bef_delta']
+        data['aft_delta'] = label['aft_delta']
 
         # assign anchor for label
         label = assign_anchor(feat_shape, label['gt_boxes'], data['im_info'], self.cfg,

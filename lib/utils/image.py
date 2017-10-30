@@ -4,6 +4,7 @@ import cv2
 import random
 from PIL import Image
 from bbox.bbox_transform import clip_boxes
+import xml.etree.ElementTree as ET
 
 
 # TODO: This two functions should be merged with individual data loader
@@ -93,7 +94,50 @@ def get_pair_image(roidb, config):
         new_rec['im_info'] = im_info
         processed_roidb.append(new_rec)
     return processed_ims, processed_ref_ims, processed_eq_flags, processed_roidb
-    
+
+def get_delta_roi(filename, roi_rec):
+    #print roi_rec['image']
+    #print filename
+    trackid = roi_rec['gt_trackid']
+    boxes = roi_rec['boxes']
+    delta = np.zeros_like(roi_rec['boxes'], dtype=float)
+    dic = {}
+
+    tree = ET.parse(filename)
+    size = tree.find('size')
+    height = float(size.find('height').text)
+    width = float(size.find('width').text)
+    objs = tree.findall('object')
+    for obj in objs:
+        bbox = obj.find('bndbox')
+        if roi_rec['flipped']==False:
+            dic[int(obj.find('trackid').text)] = [np.maximum(float(bbox.find('xmin').text), 0),
+                                         np.maximum(float(bbox.find('ymin').text), 0),
+                                         np.minimum(float(bbox.find('xmax').text), roi_rec['width']-1),
+                                         np.minimum(float(bbox.find('ymax').text), roi_rec['height']-1)]
+        else:
+            xmin = np.maximum(float(bbox.find('xmin').text), 0)
+            ymin = np.maximum(float(bbox.find('ymin').text), 0)
+            xmax = np.minimum(float(bbox.find('xmax').text), roi_rec['width']-1)
+            ymax = np.minimum(float(bbox.find('ymax').text), roi_rec['height']-1)
+
+            xmin_flip = width - 1 - xmax
+            xmax_flip = width - 1 - xmin
+
+            assert xmax_flip >= xmin_flip
+
+            dic[int(obj.find('trackid').text)] = [xmin_flip, ymin, xmax_flip, ymax]
+
+
+    for i in range(len(trackid)):
+        if trackid[i] in dic.keys():
+            delta[i][:] = [(boxes[i][j] - dic[trackid[i]][j]) for j in range(4)]
+    #print 'boxes: ', boxes
+    #print 'dic: ', dic
+    #print 'delta: ', delta
+
+    return delta
+
 def get_triple_image(roidb, config):
     """
     preprocess image and return processed roidb
@@ -109,10 +153,15 @@ def get_triple_image(roidb, config):
     processed_bef_ims = []
     processed_aft_ims = []
     processed_roidb = []
+    processed_bef_deltaroi = []
+    processed_aft_deltaroi = []
+
     for i in range(num_images):
         roi_rec = roidb[i]
         assert os.path.exists(roi_rec['image']), '%s does not exist'.format(roi_rec['image'])
         im = cv2.imread(roi_rec['image'], cv2.IMREAD_COLOR|cv2.IMREAD_IGNORE_ORIENTATION)
+        bef_delta = np.zeros_like(roi_rec['boxes'], dtype=float)
+        aft_delta = np.zeros_like(roi_rec['boxes'], dtype=float)
 
         if roi_rec.has_key('pattern'):
             # get two different frames from the interval [frame_id + MIN_OFFSET, frame_id + MAX_OFFSET]
@@ -121,6 +170,10 @@ def get_triple_image(roidb, config):
             aft_id = min(max(roi_rec['frame_seg_id'] + offsets[1], 0), roi_rec['frame_seg_len']-1)
             bef_image = roi_rec['pattern'] % bef_id
             aft_image = roi_rec['pattern'] % aft_id
+            bef_annotation = bef_image.replace('Data', 'Annotations').replace('.JPEG','.xml')
+            aft_annotation = aft_image.replace('Data', 'Annotations').replace('.JPEG','.xml')
+            bef_delta = get_delta_roi(bef_annotation, roi_rec)
+            aft_delta = get_delta_roi(aft_annotation, roi_rec)
 
             assert os.path.exists(bef_image), '%s does not exist'.format(bef_image)
             assert os.path.exists(aft_image), '%s does not exist'.format(aft_image)
@@ -143,6 +196,8 @@ def get_triple_image(roidb, config):
         im, im_scale = resize(im, target_size, max_size, stride=config.network.IMAGE_STRIDE)
         bef_im, im_scale = resize(bef_im, target_size, max_size, stride=config.network.IMAGE_STRIDE)
         aft_im, im_scale = resize(aft_im, target_size, max_size, stride=config.network.IMAGE_STRIDE)
+        bef_delta = bef_delta*im_scale
+        aft_delta = aft_delta*im_scale
         im_tensor = transform(im, config.network.PIXEL_MEANS)
         bef_im_tensor = transform(bef_im, config.network.PIXEL_MEANS)
         aft_im_tensor = transform(aft_im, config.network.PIXEL_MEANS)
@@ -153,7 +208,9 @@ def get_triple_image(roidb, config):
         new_rec['boxes'] = roi_rec['boxes'].copy() * im_scale
         new_rec['im_info'] = im_info
         processed_roidb.append(new_rec)
-    return processed_ims, processed_bef_ims, processed_aft_ims, processed_roidb
+        processed_bef_deltaroi.append(bef_delta)
+        processed_aft_deltaroi.append(aft_delta)
+    return processed_ims, processed_bef_ims, processed_aft_ims, processed_roidb, processed_bef_deltaroi, processed_aft_deltaroi
 
 def resize(im, target_size, max_size, stride=0, interpolation = cv2.INTER_LINEAR):
     """
