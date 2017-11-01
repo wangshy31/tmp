@@ -117,7 +117,7 @@ def get_rcnn_batch(roidb, cfg):
     return data, label
 
 
-def sample_rois(rois, fg_rois_per_image, rois_per_image, num_classes, cfg,
+def sample_rois(rois, delta_list, fg_rois_per_image, rois_per_image, num_classes, cfg,
                 labels=None, overlaps=None, bbox_targets=None, gt_boxes=None):
     """
     generate random sample of ROIs comprising foreground and background examples
@@ -131,11 +131,24 @@ def sample_rois(rois, fg_rois_per_image, rois_per_image, num_classes, cfg,
     :param gt_boxes: optional for e2e [n, 5] (x1, y1, x2, y2, cls)
     :return: (labels, rois, bbox_targets, bbox_weights)
     """
+    #print 'rois shape is : ', rois.shape
+    #print 'delta_list shape is : ', delta_list.shape
+    #print 'gt_boxes shape is : ', gt_boxes.shape
     if labels is None:
         overlaps = bbox_overlaps(rois[:, 1:].astype(np.float), gt_boxes[:, :4].astype(np.float))
         gt_assignment = overlaps.argmax(axis=1)
         overlaps = overlaps.max(axis=1)
         labels = gt_boxes[gt_assignment, 4]
+        delta_list_shape = delta_list.shape
+        bef_delta = delta_list[0:delta_list_shape[0]/2]
+        aft_delta = delta_list[delta_list_shape[0]/2: delta_list_shape[0]]
+        #print gt_assignment
+        #print gt_boxes
+        #print bef_delta
+        #print aft_delta
+        bef_label = bef_delta[gt_assignment,:]
+        aft_label = aft_delta[gt_assignment,:]
+        #print 'delta label: ', bef_label, aft_label
 
     # foreground RoI with FG_THRESH overlap
     fg_indexes = np.where(overlaps >= cfg.TRAIN.FG_THRESH)[0]
@@ -165,10 +178,15 @@ def sample_rois(rois, fg_rois_per_image, rois_per_image, num_classes, cfg,
 
     # select labels
     labels = labels[keep_indexes]
+    bef_label = bef_label[keep_indexes]
+    aft_label = aft_label[keep_indexes]
     # set labels of bg_rois to be 0
     labels[fg_rois_per_this_image:] = 0
     rois = rois[keep_indexes]
 
+    delta_label = []
+    delta_label.extend(bef_label)
+    delta_label.extend(aft_label)
     # load or compute bbox_target
     if bbox_targets is not None:
         bbox_target_data = bbox_targets[keep_indexes, :]
@@ -182,5 +200,5 @@ def sample_rois(rois, fg_rois_per_image, rois_per_image, num_classes, cfg,
     bbox_targets, bbox_weights = \
         expand_bbox_regression_targets(bbox_target_data, num_classes, cfg)
 
-    return rois, labels, bbox_targets, bbox_weights
+    return rois, labels, bbox_targets, bbox_weights, delta_label
 
