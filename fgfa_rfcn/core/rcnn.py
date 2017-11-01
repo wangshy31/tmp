@@ -184,9 +184,7 @@ def sample_rois(rois, delta_list, fg_rois_per_image, rois_per_image, num_classes
     labels[fg_rois_per_this_image:] = 0
     rois = rois[keep_indexes]
 
-    delta_label = []
-    delta_label.extend(bef_label)
-    delta_label.extend(aft_label)
+    delta_label = np.append(bef_label, aft_label, axis=0)
     # load or compute bbox_target
     if bbox_targets is not None:
         bbox_target_data = bbox_targets[keep_indexes, :]

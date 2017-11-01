@@ -78,6 +78,7 @@ class ProposalTargetOperator(mx.operator.CustomOp):
     def backward(self, req, out_grad, in_data, out_data, in_grad, aux):
         self.assign(in_grad[0], req[0], 0)
         self.assign(in_grad[1], req[1], 0)
+        self.assign(in_grad[2], req[2], 0)
 
 
 @mx.operator.register('proposal_target')

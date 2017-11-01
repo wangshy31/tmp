@@ -17,10 +17,11 @@ def get_rpn_names():
 
 
 def get_rcnn_names(cfg):
-    pred = ['rcnn_cls_prob', 'rcnn_bbox_loss']
+    pred = ['rcnn_cls_prob', 'rcnn_bbox_loss', 'delta_loss']
     label = ['rcnn_label', 'rcnn_bbox_target', 'rcnn_bbox_weight']
     if cfg.TRAIN.ENABLE_OHEM or cfg.TRAIN.END2END:
         pred.append('rcnn_label')
+        pred.append('delta_label')
     if cfg.TRAIN.END2END:
         rpn_pred, rpn_label = get_rpn_names()
         pred = rpn_pred + pred
@@ -173,4 +174,21 @@ class RCNNL1LossMetric(mx.metric.EvalMetric):
         num_inst = np.sum(label != -1)
 
         self.sum_metric += np.sum(bbox_loss)
+        self.num_inst += num_inst
+
+class DELTAL1LossMetric(mx.metric.EvalMetric):
+    def __init__(self, cfg):
+        super(DELTAL1LossMetric, self).__init__('DELTAL1Loss')
+        self.e2e = cfg.TRAIN.END2END
+        self.ohem = cfg.TRAIN.ENABLE_OHEM
+        self.pred, self.label = get_rcnn_names(cfg)
+
+    def update(self, labels, preds):
+        delta_loss = preds[self.pred.index('delta_loss')].asnumpy()
+        label = preds[self.pred.index('delta_label')].asnumpy()
+
+        # calculate num_inst (average on those kept anchors)
+        num_inst = np.sum(label != -1)
+
+        self.sum_metric += np.sum(delta_loss)
         self.num_inst += num_inst

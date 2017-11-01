@@ -993,6 +993,8 @@ class resnet_v1_101_flownet_rfcn(Symbol):
 
 
 
+        #a,b,c = roipooled_delta_ip2.infer_shape(data=(1,3,600,900), data_bef = (1,3,600,900), data_aft=(1,3,600,900), gt_boxes=(1,1,5), bef_delta=(1,4), aft_delta=(1,4))
+        #print 'shape!!!', b
         delta_loss_ = mx.sym.smooth_l1(name='delta_loss_', scalar=1.0, data=(roipooled_delta_ip2 - delta_label))
         delta_loss = mx.sym.MakeLoss(name='delta_loss', data=delta_loss_, grad_scale=2.0 / cfg.TRAIN.RPN_BATCH_SIZE)
 
@@ -1098,7 +1100,8 @@ class resnet_v1_101_flownet_rfcn(Symbol):
         bbox_loss = mx.sym.Reshape(data=bbox_loss, shape=(cfg.TRAIN.BATCH_IMAGES, -1, 4 * num_reg_classes),
                                    name='bbox_loss_reshape')
 
-        group = mx.sym.Group([rpn_cls_prob, rpn_bbox_loss, cls_prob, bbox_loss, mx.sym.BlockGrad(rcnn_label)])
+        group = mx.sym.Group([rpn_cls_prob, rpn_bbox_loss, cls_prob, bbox_loss, delta_loss, mx.sym.BlockGrad(rcnn_label),
+                              mx.sym.BlockGrad(delta_label)])
                               #mx.sym.BlockGrad(roi_copies_value), mx.sym.BlockGrad(roipooled_delta_ip2),
                               #mx.sym.BlockGrad(rois_delta[0]), mx.sym.BlockGrad(rois_delta[1]), ])
         self.sym = group
