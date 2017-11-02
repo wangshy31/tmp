@@ -971,7 +971,7 @@ class resnet_v1_101_flownet_rfcn(Symbol):
 
         # ROI proposal target
         gt_boxes_reshape = mx.sym.Reshape(data=gt_boxes, shape=(-1, 5), name='gt_boxes_reshape')
-        rois, label, bbox_target, bbox_weight, delta_label = mx.sym.Custom(rois=rois, gt_boxes=gt_boxes_reshape,
+        rois, label, bbox_target, bbox_weight, delta_label, t_g = mx.sym.Custom(rois=rois, gt_boxes=gt_boxes_reshape,
                                                               delta_list=concat_bef_aft_delta,
                                                               op_type='proposal_target',
                                                               num_classes=num_reg_classes,
@@ -1004,7 +1004,24 @@ class resnet_v1_101_flownet_rfcn(Symbol):
         roi_copies_batch = mx.symbol.slice_axis(roi_copies, axis=1, begin=0, end=1)
         roi_copies_value = mx.symbol.slice_axis(roi_copies, axis=1, begin=1, end=5)
 
-        roi_delta = roi_copies_value - roipooled_delta_ip2
+        #delta_pred
+        pred_delta = mx.sym.SliceChannel(roipooled_delta_ip2, axis=1, num_outputs=4)
+        t_g = mx.sym.SliceChannel(t_g, axis=1, num_outputs=4)
+        pred_ctr_x = pred_delta[0] * t_g[0] + t_g[2]
+        pred_ctr_y = pred_delta[1] * t_g[1] + t_g[3]
+        pred_w = mx.symbol.exp(pred_delta[2])*t_g[0]
+        pred_h = mx.symbol.exp(pred_delta[3])*t_g[2]
+
+        roi_delta_0 = pred_ctr_x - 0.5 * (pred_w - 1.0)
+        roi_delta_1 = pred_ctr_y - 0.5 * (pred_h - 1.0)
+        roi_delta_2 = pred_ctr_x + 0.5 * (pred_w - 1.0)
+        roi_delta_3 = pred_ctr_y + 0.5 * (pred_h - 1.0)
+
+        roi_delta = mx.symbol.Concat(*[roi_delta_0, roi_delta_1, roi_delta_2, roi_delta_3], dim=1)
+
+
+
+        #roi_delta = roi_copies_value - roipooled_delta_ip2
         roi_delta_addbatchdim = mx.symbol.Concat(*[roi_copies_batch, roi_delta], dim=1)
         rois_delta = mx.sym.SliceChannel(roi_delta_addbatchdim, axis=0, num_outputs=2)
 
@@ -1074,6 +1091,7 @@ class resnet_v1_101_flownet_rfcn(Symbol):
         cls_score = mx.sym.Reshape(name='cls_score_reshape', data=cls_score, shape=(-1, num_classes))
         bbox_pred = mx.sym.Reshape(name='bbox_pred_reshape', data=bbox_pred, shape=(-1, 4 * num_reg_classes))
 
+        print 'cfg.TRAIN.BATCH_ROIS_OHEM', cfg.TRAIN.BATCH_ROIS_OHEM, cfg.TRAIN.BATCH_ROIS
         # classification
         if cfg.TRAIN.ENABLE_OHEM:
             print 'use ohem!'

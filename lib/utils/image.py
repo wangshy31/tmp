@@ -4,6 +4,7 @@ import cv2
 import random
 from PIL import Image
 from bbox.bbox_transform import clip_boxes
+from bbox.bbox_transform import bbox_transform
 import xml.etree.ElementTree as ET
 
 
@@ -131,10 +132,9 @@ def get_delta_roi(filename, roi_rec):
 
     for i in range(len(trackid)):
         if trackid[i] in dic.keys():
-            delta[i][:] = [(boxes[i][j] - dic[trackid[i]][j]) for j in range(4)]
-    #print 'boxes: ', boxes
-    #print 'dic: ', dic
-    #print 'delta: ', delta
+            #delta[i][:] = [(boxes[i][j] - dic[trackid[i]][j]) for j in range(4)]
+            delta_trans = bbox_transform(np.array([dic[trackid[i]]]), np.array([boxes[i]]))
+            delta[i][:] = delta_trans[0]
 
     return delta
 
