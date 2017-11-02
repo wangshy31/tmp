@@ -859,7 +859,7 @@ class resnet_v1_101_flownet_rfcn(Symbol):
         delta_Convolution = mx.symbol.Convolution(name='delta_Convolution', data=Concat5, num_filter=1, pad=(1, 1), kernel=(3, 3),
                                              stride=(1, 1), no_bias=False)
 
-        return Convolution5 * 2.5, delta_Convolution*10000
+        return Convolution5 * 2.5, delta_Convolution
 
     def get_train_symbol(self, cfg):
         # config alias for convenient
