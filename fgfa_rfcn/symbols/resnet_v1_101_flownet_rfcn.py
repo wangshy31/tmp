@@ -865,6 +865,7 @@ class resnet_v1_101_flownet_rfcn(Symbol):
         # config alias for convenient
         num_classes = cfg.dataset.NUM_CLASSES
         num_reg_classes = (2 if cfg.CLASS_AGNOSTIC else num_classes)
+        print 'num_reg_classes', num_reg_classes
         num_anchors = cfg.network.NUM_ANCHORS
 
         data = mx.sym.Variable(name="data")
@@ -993,10 +994,10 @@ class resnet_v1_101_flownet_rfcn(Symbol):
 
 
 
-        #a,b,c = roipooled_delta_ip2.infer_shape(data=(1,3,600,900), data_bef = (1,3,600,900), data_aft=(1,3,600,900), gt_boxes=(1,1,5), bef_delta=(1,4), aft_delta=(1,4))
-        #print 'shape!!!', b
-        delta_loss_ = mx.sym.smooth_l1(name='delta_loss_', scalar=1.0, data=(roipooled_delta_ip2 - delta_label))
-        delta_loss = mx.sym.MakeLoss(name='delta_loss', data=delta_loss_, grad_scale=2.0 / cfg.TRAIN.RPN_BATCH_SIZE)
+        delta_loss_weight = mx.symbol.slice_axis(bbox_weight, axis=1, begin=4, end=8)
+        delta_loss_weight_copies = mx.sym.tile(delta_loss_weight, reps=(2, 1))
+        delta_loss_ = delta_loss_weight_copies * mx.sym.smooth_l1(name='delta_loss_', scalar=1.0, data=(roipooled_delta_ip2 - delta_label))
+        delta_loss = mx.sym.MakeLoss(name='delta_loss', data=delta_loss_, grad_scale=1.0 / cfg.TRAIN.RPN_BATCH_SIZE)
 
         #generate delta rois and slice to rois_delta
         roi_copies = mx.sym.tile(rois, reps=(2, 1))
