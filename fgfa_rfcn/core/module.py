@@ -963,12 +963,11 @@ class MutableModule(BaseModule):
             tic = time.time()
             eval_metric.reset()
             for nbatch, data_batch in enumerate(train_data):
-                print 'data_batch!!!!', data_batch.data[0][-2].asnumpy()
-                print 'data_batch!!!!', data_batch.data[0][-1].asnumpy()
+                #print 'data_batch!!!!', data_batch.data[0][-2].asnumpy()
+                #print 'data_batch!!!!', data_batch.data[0][-1].asnumpy()
                 if monitor is not None:
                     monitor.tic()
                 self.forward_backward(data_batch)
-                self.get_outputs()
                 self.update()
                 self.update_metric(eval_metric, data_batch.label)
 

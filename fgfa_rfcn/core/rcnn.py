@@ -140,8 +140,8 @@ def sample_rois(rois, delta_list, fg_rois_per_image, rois_per_image, num_classes
         overlaps = overlaps.max(axis=1)
         labels = gt_boxes[gt_assignment, 4]
         delta_list_shape = delta_list.shape
-        print 'delta_list!!', delta_list
-        print 'gt_boxes!!', gt_boxes
+        #print 'delta_list!!', delta_list
+        #print 'gt_boxes!!', gt_boxes
         bef_delta = delta_list[0:delta_list_shape[0]/2]
         aft_delta = delta_list[delta_list_shape[0]/2: delta_list_shape[0]]
         #generate tranformed gt_boxes
