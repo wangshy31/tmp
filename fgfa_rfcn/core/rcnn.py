@@ -140,15 +140,17 @@ def sample_rois(rois, delta_list, fg_rois_per_image, rois_per_image, num_classes
         overlaps = overlaps.max(axis=1)
         labels = gt_boxes[gt_assignment, 4]
         delta_list_shape = delta_list.shape
+        print 'delta_list!!', delta_list
+        print 'gt_boxes!!', gt_boxes
         bef_delta = delta_list[0:delta_list_shape[0]/2]
         aft_delta = delta_list[delta_list_shape[0]/2: delta_list_shape[0]]
         #generate tranformed gt_boxes
-        t_boxes = np.empty((gt_boxes.shape[0], 4))
-        t_boxes[:, 0] = gt_boxes[:, 2] - gt_boxes[:, 0]+1.0
-        t_boxes[:, 1] = gt_boxes[:, 3] - gt_boxes[:, 1]+1.0
-        t_boxes[:, 2] = gt_boxes[:, 0] + 0.5 * (t_boxes[:, 0]-1.0)
-        t_boxes[:, 3] = gt_boxes[:, 1] + 0.5 * (t_boxes[:, 1]-1.0)
-        t_g = t_boxes[gt_assignment, :]
+        #t_boxes = np.empty((gt_boxes.shape[0], 4))
+        #t_boxes[:, 0] = gt_boxes[:, 2] - gt_boxes[:, 0]+1.0
+        #t_boxes[:, 1] = gt_boxes[:, 3] - gt_boxes[:, 1]+1.0
+        #t_boxes[:, 2] = gt_boxes[:, 0] + 0.5 * (t_boxes[:, 0]-1.0)
+        #t_boxes[:, 3] = gt_boxes[:, 1] + 0.5 * (t_boxes[:, 1]-1.0)
+        t_g = gt_boxes[gt_assignment, :4]
         #print gt_assignment
         #print gt_boxes
         #print bef_delta

@@ -997,7 +997,7 @@ class resnet_v1_101_flownet_rfcn(Symbol):
         delta_loss_weight = mx.symbol.slice_axis(bbox_weight, axis=1, begin=4, end=8)
         delta_loss_weight_copies = mx.sym.tile(delta_loss_weight, reps=(2, 1))
         delta_loss_ = delta_loss_weight_copies * mx.sym.smooth_l1(name='delta_loss_', scalar=1.0, data=(roipooled_delta_ip2 - delta_label))
-        delta_loss = mx.sym.MakeLoss(name='delta_loss', data=delta_loss_, grad_scale=1.0 / 20)#cfg.TRAIN.RPN_BATCH_SIZE)
+        delta_loss = mx.sym.MakeLoss(name='delta_loss', data=delta_loss_, grad_scale=1.0 / cfg.TRAIN.RPN_BATCH_SIZE)
 
         #generate delta rois and slice to rois_delta
         roi_copies = mx.sym.tile(rois, reps=(2, 1))
@@ -1006,11 +1006,16 @@ class resnet_v1_101_flownet_rfcn(Symbol):
 
         #delta_pred
         pred_delta = mx.sym.SliceChannel(roipooled_delta_ip2, axis=1, num_outputs=4)
-        t_g = mx.sym.SliceChannel(t_g, axis=1, num_outputs=4)
-        pred_ctr_x = pred_delta[0] * t_g[0] + t_g[2]
-        pred_ctr_y = pred_delta[1] * t_g[1] + t_g[3]
-        pred_w = mx.symbol.exp(pred_delta[2])*t_g[0]
-        pred_h = mx.symbol.exp(pred_delta[3])*t_g[2]
+        ex_boxes = mx.sym.SliceChannel(roi_copies_value, axis=1, num_outputs=4)
+
+        widths = ex_boxes[2] - ex_boxes[0] + 1.0
+        heights = ex_boxes[3] - ex_boxes[1] + 1.0
+        ctr_x = ex_boxes[0] + 0.5 * (widths - 1.0)
+        ctr_y = ex_boxes[1] + 0.5 * (heights - 1.0)
+        pred_ctr_x = pred_delta[0] * widths + ctr_x
+        pred_ctr_y = pred_delta[1] * heights + ctr_y
+        pred_w = mx.symbol.exp(pred_delta[2])*widths
+        pred_h = mx.symbol.exp(pred_delta[3])*heights
 
         roi_delta_0 = pred_ctr_x - 0.5 * (pred_w - 1.0)
         roi_delta_1 = pred_ctr_y - 0.5 * (pred_h - 1.0)
@@ -1120,7 +1125,9 @@ class resnet_v1_101_flownet_rfcn(Symbol):
                                    name='bbox_loss_reshape')
 
         group = mx.sym.Group([rpn_cls_prob, rpn_bbox_loss, cls_prob, bbox_loss, delta_loss, mx.sym.BlockGrad(rcnn_label),
-                              mx.sym.BlockGrad(delta_label)])
+                              mx.sym.BlockGrad(gt_boxes), mx.sym.BlockGrad(delta_label), mx.sym.BlockGrad(rois), mx.sym.BlockGrad(t_g),
+                              mx.sym.BlockGrad(roipooled_delta_ip2),
+                              mx.sym.BlockGrad(roi_delta)])
                               #mx.sym.BlockGrad(roi_copies_value), mx.sym.BlockGrad(roipooled_delta_ip2),
                               #mx.sym.BlockGrad(rois_delta[0]), mx.sym.BlockGrad(rois_delta[1]), ])
         self.sym = group

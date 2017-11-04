@@ -371,5 +371,9 @@ class AnchorLoader(mx.io.DataIter):
                               self.feat_stride, self.anchor_scales,
                               self.anchor_ratios, self.allowed_border,
                               self.normalize_target, self.bbox_mean, self.bbox_std)
+        #print '###################################begin parfetch##########################'
+        #print 'data[gt_boxes]', data['gt_boxes']
+        #print 'data[bef_delta]', data['bef_delta']
+        #print 'data[aft_delta]', data['aft_delta']
         return {'data': data, 'label': label}
 

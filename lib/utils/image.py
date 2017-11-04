@@ -133,7 +133,8 @@ def get_delta_roi(filename, roi_rec):
     for i in range(len(trackid)):
         if trackid[i] in dic.keys():
             #delta[i][:] = [(boxes[i][j] - dic[trackid[i]][j]) for j in range(4)]
-            delta_trans = bbox_transform(np.array([dic[trackid[i]]]), np.array([boxes[i]]))
+            delta_trans = bbox_transform(np.array([boxes[i]]), np.array([dic[trackid[i]]]))
+            #print 'trackid, gt: ',i,  dic[trackid[i]], boxes[i], delta_trans[0]
             delta[i][:] = delta_trans[0]
 
     return delta
@@ -207,6 +208,9 @@ def get_triple_image(roidb, config):
         im_info = [im_tensor.shape[2], im_tensor.shape[3], im_scale]
         new_rec['boxes'] = roi_rec['boxes'].copy() * im_scale
         new_rec['im_info'] = im_info
+        #print 'bef label after scale: ', bef_delta
+        #print 'aft label after scale: ', aft_delta
+        #print 'new_rec[boxes], scale ', new_rec['boxes'], im_scale
         processed_roidb.append(new_rec)
         processed_bef_deltaroi.append(bef_delta)
         processed_aft_deltaroi.append(aft_delta)
