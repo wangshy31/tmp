@@ -96,12 +96,14 @@ def get_pair_image(roidb, config):
         processed_roidb.append(new_rec)
     return processed_ims, processed_ref_ims, processed_eq_flags, processed_roidb
 
-def get_delta_roi(filename, roi_rec):
+def get_delta_roi(filename, roi_rec, im_scale):
     #print roi_rec['image']
     #print filename
     trackid = roi_rec['gt_trackid']
     boxes = roi_rec['boxes']
+    boxes = boxes * im_scale
     delta = np.zeros_like(roi_rec['boxes'], dtype=float)
+    delta_tracker = np.zeros_like(roi_rec['boxes'], dtype=float)
     dic = {}
 
     tree = ET.parse(filename)
@@ -112,10 +114,11 @@ def get_delta_roi(filename, roi_rec):
     for obj in objs:
         bbox = obj.find('bndbox')
         if roi_rec['flipped']==False:
-            dic[int(obj.find('trackid').text)] = [np.maximum(float(bbox.find('xmin').text), 0),
-                                         np.maximum(float(bbox.find('ymin').text), 0),
-                                         np.minimum(float(bbox.find('xmax').text), roi_rec['width']-1),
-                                         np.minimum(float(bbox.find('ymax').text), roi_rec['height']-1)]
+            np.minimum(float(bbox.find('ymax').text), roi_rec['height']-1)
+            dic[int(obj.find('trackid').text)] = [np.maximum(float(bbox.find('xmin').text), 0)*im_scale,
+                                         np.maximum(float(bbox.find('ymin').text), 0)*im_scale,
+                                         np.minimum(float(bbox.find('xmax').text), roi_rec['width']-1)*im_scale,
+                                         np.minimum(float(bbox.find('ymax').text), roi_rec['height']-1)*im_scale]
         else:
             xmin = np.maximum(float(bbox.find('xmin').text), 0)
             ymin = np.maximum(float(bbox.find('ymin').text), 0)
@@ -127,15 +130,20 @@ def get_delta_roi(filename, roi_rec):
 
             assert xmax_flip >= xmin_flip
 
-            dic[int(obj.find('trackid').text)] = [xmin_flip, ymin, xmax_flip, ymax]
+            dic[int(obj.find('trackid').text)] = [xmin_flip*im_scale, ymin*im_scale, xmax_flip*im_scale, ymax*im_scale]
 
 
     for i in range(len(trackid)):
         if trackid[i] in dic.keys():
-            #delta[i][:] = [(boxes[i][j] - dic[trackid[i]][j]) for j in range(4)]
             delta_trans = bbox_transform(np.array([boxes[i]]), np.array([dic[trackid[i]]]))
-            #print 'trackid, gt: ',i,  dic[trackid[i]], boxes[i], delta_trans[0]
+            delta_tracker[i][:] = dic[trackid[i]]
             delta[i][:] = delta_trans[0]
+
+    #print '###generate delta once###'
+    #print 'io, boxes: : ', boxes
+    #print 'io, tracker: : ', delta_tracker
+    #print 'io, norm target: : ', delta
+
 
     return delta
 
@@ -159,11 +167,11 @@ def get_triple_image(roidb, config):
 
     for i in range(num_images):
         roi_rec = roidb[i]
+        #print roi_rec['image']
         assert os.path.exists(roi_rec['image']), '%s does not exist'.format(roi_rec['image'])
         im = cv2.imread(roi_rec['image'], cv2.IMREAD_COLOR|cv2.IMREAD_IGNORE_ORIENTATION)
-        bef_delta = np.zeros_like(roi_rec['boxes'], dtype=float)
-        aft_delta = np.zeros_like(roi_rec['boxes'], dtype=float)
-
+        bef_image = ''
+        aft_image = ''
         if roi_rec.has_key('pattern'):
             # get two different frames from the interval [frame_id + MIN_OFFSET, frame_id + MAX_OFFSET]
             offsets = np.random.choice(config.TRAIN.MAX_OFFSET - config.TRAIN.MIN_OFFSET + 1, 2, replace=False) + config.TRAIN.MIN_OFFSET
@@ -171,10 +179,6 @@ def get_triple_image(roidb, config):
             aft_id = min(max(roi_rec['frame_seg_id'] + offsets[1], 0), roi_rec['frame_seg_len']-1)
             bef_image = roi_rec['pattern'] % bef_id
             aft_image = roi_rec['pattern'] % aft_id
-            bef_annotation = bef_image.replace('Data', 'Annotations').replace('.JPEG','.xml')
-            aft_annotation = aft_image.replace('Data', 'Annotations').replace('.JPEG','.xml')
-            bef_delta = get_delta_roi(bef_annotation, roi_rec)
-            aft_delta = get_delta_roi(aft_annotation, roi_rec)
 
             assert os.path.exists(bef_image), '%s does not exist'.format(bef_image)
             assert os.path.exists(aft_image), '%s does not exist'.format(aft_image)
@@ -197,8 +201,6 @@ def get_triple_image(roidb, config):
         im, im_scale = resize(im, target_size, max_size, stride=config.network.IMAGE_STRIDE)
         bef_im, im_scale = resize(bef_im, target_size, max_size, stride=config.network.IMAGE_STRIDE)
         aft_im, im_scale = resize(aft_im, target_size, max_size, stride=config.network.IMAGE_STRIDE)
-        bef_delta = bef_delta*im_scale
-        aft_delta = aft_delta*im_scale
         im_tensor = transform(im, config.network.PIXEL_MEANS)
         bef_im_tensor = transform(bef_im, config.network.PIXEL_MEANS)
         aft_im_tensor = transform(aft_im, config.network.PIXEL_MEANS)
@@ -208,12 +210,22 @@ def get_triple_image(roidb, config):
         im_info = [im_tensor.shape[2], im_tensor.shape[3], im_scale]
         new_rec['boxes'] = roi_rec['boxes'].copy() * im_scale
         new_rec['im_info'] = im_info
+
+        bef_delta = np.zeros_like(new_rec['boxes'], dtype=float)
+        aft_delta = np.zeros_like(new_rec['boxes'], dtype=float)
+        if roi_rec.has_key('pattern'):
+            bef_annotation = bef_image.replace('Data', 'Annotations').replace('.JPEG','.xml')
+            aft_annotation = aft_image.replace('Data', 'Annotations').replace('.JPEG','.xml')
+            bef_delta = get_delta_roi(bef_annotation, roi_rec, im_scale)
+            aft_delta = get_delta_roi(aft_annotation, roi_rec, im_scale)
         #print 'bef label after scale: ', bef_delta
         #print 'aft label after scale: ', aft_delta
         #print 'new_rec[boxes], scale ', new_rec['boxes'], im_scale
         processed_roidb.append(new_rec)
         processed_bef_deltaroi.append(bef_delta)
         processed_aft_deltaroi.append(aft_delta)
+
+
     return processed_ims, processed_bef_ims, processed_aft_ims, processed_roidb, processed_bef_deltaroi, processed_aft_deltaroi
 
 def resize(im, target_size, max_size, stride=0, interpolation = cv2.INTER_LINEAR):
