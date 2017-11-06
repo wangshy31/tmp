@@ -1052,15 +1052,15 @@ class MutableModule(BaseModule):
         assert self.binded and self.params_initialized and self.optimizer_initialized
         self._curr_module.update()
 
-    def get_outputs(self, merge_multi_context=True):
+    def get_outputs(self, merge_multi_context=False):
         assert self.binded and self.params_initialized
-        print self._curr_module.get_outputs(merge_multi_context=merge_multi_context)
-        print '#gt#: ', self._curr_module.get_outputs(merge_multi_context=merge_multi_context)[-6].asnumpy()[0]
-        print 'delta_label: ', self._curr_module.get_outputs(merge_multi_context=merge_multi_context)[-5].asnumpy()[:2, :]
-        print 'rois: ', self._curr_module.get_outputs(merge_multi_context=merge_multi_context)[-4].asnumpy()[:2, :]
-        print 't_g: ', self._curr_module.get_outputs(merge_multi_context=merge_multi_context)[-3].asnumpy()[:2, :]
-        print 'roipooled_delta_ip2: ', self._curr_module.get_outputs(merge_multi_context=merge_multi_context)[-2].asnumpy()[:2, :]
-        print 'roi_delta: ', self._curr_module.get_outputs(merge_multi_context=merge_multi_context)[-1].asnumpy()[:2, :]
+        #print self._curr_module.get_outputs(merge_multi_context=merge_multi_context)
+        #print '#gt#: ', self._curr_module.get_outputs(merge_multi_context=merge_multi_context)[-6].asnumpy()[0]
+        #print 'delta_label: ', self._curr_module.get_outputs(merge_multi_context=merge_multi_context)[-5].asnumpy()[:2, :]
+        #print 'rois: ', self._curr_module.get_outputs(merge_multi_context=merge_multi_context)[-4].asnumpy()[:2, :]
+        #print 't_g: ', self._curr_module.get_outputs(merge_multi_context=merge_multi_context)[-3].asnumpy()[:2, :]
+        #print 'roipooled_delta_ip2: ', self._curr_module.get_outputs(merge_multi_context=merge_multi_context)[-2].asnumpy()[:2, :]
+        #print 'roi_delta: ', self._curr_module.get_outputs(merge_multi_context=merge_multi_context)[-1].asnumpy()[:2, :]
         return self._curr_module.get_outputs(merge_multi_context=merge_multi_context)
     def get_input_grads(self, merge_multi_context=True):
         assert self.binded and self.params_initialized and self.inputs_need_grad
