@@ -1029,6 +1029,24 @@ class resnet_v1_101_flownet_rfcn(Symbol):
                                        name="rfcn_bbox")
 
         rfcn_cls_slice = mx.sym.SliceChannel(rfcn_cls, axis=0, num_outputs=3)
+        # flow warp
+        flow = mx.sym.SliceChannel(delta, axis=0, num_outputs=2)
+        flow_grid_1 = mx.sym.GridGenerator(data=flow[0], transform_type='warp', name='flow_grid_1')
+        flow_grid_2 = mx.sym.GridGenerator(data=flow[1], transform_type='warp', name='flow_grid_2')
+        warp_conv_feat_1 = mx.sym.BilinearSampler(data=rfcn_cls_slice[1], grid=flow_grid_1, name='warping_feat_1')
+        warp_conv_feat_2 = mx.sym.BilinearSampler(data=rfcn_cls_slice[2], grid=flow_grid_2, name='warping_feat_2')
+
+
+        psroipooled_cls_warp_1 = mx.contrib.sym.PSROIPooling(name='psroipooled_cls_warp_1', data=rfcn_cls_slice[1], rois=rois,
+                                                           group_size=7,
+                                                           pooled_size=7,
+                                                           output_dim=num_classes, spatial_scale=0.0625)
+
+        psroipooled_cls_warp_2 = mx.contrib.sym.PSROIPooling(name='psroipooled_cls_warp_2', data=rfcn_cls_slice[2], rois=rois,
+                                                           group_size=7,
+                                                           pooled_size=7,
+                                                           output_dim=num_classes, spatial_scale=0.0625)
+
         psroipooled_cls_rois_0 = mx.contrib.sym.PSROIPooling(name='psroipooled_cls_rois_0', data=rfcn_cls_slice[0], rois=rois,
                                                            group_size=7,
                                                            pooled_size=7,
@@ -1047,7 +1065,8 @@ class resnet_v1_101_flownet_rfcn(Symbol):
                                                            group_size=7,
                                                            pooled_size=7,
                                                            output_dim=8, spatial_scale=0.0625)
-        psroipooled_cls_rois_mean = psroipooled_cls_rois_0 / 3.0 + psroipooled_cls_rois_1 / 3.0+ psroipooled_cls_rois_2 / 3.0
+        psroipooled_cls_rois_mean = psroipooled_cls_warp_1 / 5.0 + psroipooled_cls_warp_2 / 5.0 +\
+                                    psroipooled_cls_rois_0 / 5.0 + psroipooled_cls_rois_1 / 5.0+ psroipooled_cls_rois_2 / 5.0
 
 
         cls_score = mx.sym.Pooling(name='ave_cls_scors_rois', data=psroipooled_cls_rois_mean, pool_type='avg',
