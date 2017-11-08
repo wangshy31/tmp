@@ -1196,25 +1196,39 @@ class resnet_v1_101_flownet_rfcn(Symbol):
 
         # res5
         #generate delta roi
-        roipooled_delta = mx.symbol.ROIPooling(name='roipooled_delta', data=deltas[0], rois=rois,
+        deltas_xy = mx.sym.SliceChannel(deltas[0], axis=1, num_outputs=2)
+        roipooled_bef_delta_x = mx.symbol.ROIPooling(name='roipooled_bef_delta_x', data=deltas_xy[0], rois=rois,
+                                               pooled_size=(7,7),
+                                               spatial_scale=0.0625)
+        roipooled_bef_delta_y = mx.symbol.ROIPooling(name='roipooled_bef_delta_y', data=deltas_xy[1], rois=rois,
                                                pooled_size=(7,7),
                                                spatial_scale=0.0625)
         for i in range(1, data_range):
-            roipooled_delta_tmp = mx.symbol.ROIPooling(name='roipooled_delta_tmp', data=deltas[i], rois=rois,
+            deltas_xy = mx.sym.SliceChannel(deltas[i], axis=1, num_outputs=2)
+            roipooled_bef_delta_x_tmp = mx.symbol.ROIPooling(name='roipooled_bef_delta_x_tmp', data=deltas_xy[0], rois=rois,
                                                pooled_size=(7,7),
                                                spatial_scale=0.0625)
-            roipooled_delta = mx.symbol.Concat(*[roipooled_delta, roipooled_delta_tmp], dim=0)
+            roipooled_bef_delta_y_tmp = mx.symbol.ROIPooling(name='roipooled_bef_delta_y_tmp', data=deltas_xy[1], rois=rois,
+                                               pooled_size=(7,7),
+                                               spatial_scale=0.0625)
+            roipooled_bef_delta_x = mx.symbol.Concat(*[roipooled_bef_delta_x, roipooled_bef_delta_x_tmp], dim=0)
+            roipooled_bef_delta_y = mx.symbol.Concat(*[roipooled_bef_delta_y, roipooled_bef_delta_y_tmp], dim=0)
 
 
-        roipooled_delta_ip1 = mx.symbol.FullyConnected(data=roipooled_delta, num_hidden=32, name='roipooled_delta_ip1')
-        roipooled_delta_ip2 = mx.symbol.FullyConnected(data=roipooled_delta_ip1, num_hidden=4, name='roipooled_delta_ip2')
+        roipooled_delta_x_ip1 = mx.symbol.FullyConnected(data=roipooled_bef_delta_x, num_hidden=2, name='roipooled_delta_x_ip1')
+        roipooled_delta_y_ip1 = mx.symbol.FullyConnected(data=roipooled_bef_delta_y, num_hidden=2, name='roipooled_delta_y_ip1')
+        roipooled_delta_x_ip2_slice = mx.sym.SliceChannel(roipooled_delta_x_ip1, axis=1, num_outputs=2)
+        roipooled_delta_y_ip2_slice = mx.sym.SliceChannel(roipooled_delta_y_ip1, axis=1, num_outputs=2)
+
+        roi_delta_pred = mx.symbol.Concat(*[roipooled_delta_x_ip2_slice[0], roipooled_delta_y_ip2_slice[0],
+                                            roipooled_delta_x_ip2_slice[1], roipooled_delta_y_ip2_slice[1]], dim=1)
 
         #delta_pred
         #generate delta rois and slice to rois_delta
         roi_copies = mx.sym.tile(rois, reps=(data_range, 1))
         roi_copies_batch = mx.symbol.slice_axis(roi_copies, axis=1, begin=0, end=1)
         roi_copies_value = mx.symbol.slice_axis(roi_copies, axis=1, begin=1, end=5)
-        pred_delta = mx.sym.SliceChannel(roipooled_delta_ip2, axis=1, num_outputs=4)
+        pred_delta = mx.sym.SliceChannel(roi_delta_pred, axis=1, num_outputs=4)
         ex_boxes = mx.sym.SliceChannel(roi_copies_value, axis=1, num_outputs=4)
 
         widths = ex_boxes[2] - ex_boxes[0] + 1.0
