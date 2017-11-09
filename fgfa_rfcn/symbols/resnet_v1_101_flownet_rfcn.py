@@ -892,11 +892,19 @@ class resnet_v1_101_flownet_rfcn(Symbol):
 
         deltas = mx.sym.SliceChannel(delta, axis=0, num_outputs=2)
         conv_feat_split = mx.sym.SliceChannel(conv_feat, axis=0, num_outputs=3)
-        cur_conv_feat = mx.sym.SliceChannel(conv_feat_split[0], axis=1, num_outputs=2)
-        conv_feats = mx.sym.SliceChannel(conv_feat, axis=1, num_outputs=2)
+
+        # flow warp
+        flow_grid_1 = mx.sym.GridGenerator(data=deltas[0], transform_type='warp', name='flow_grid_1')
+        flow_grid_2 = mx.sym.GridGenerator(data=deltas[1], transform_type='warp', name='flow_grid_2')
+        warp_conv_feat_1 = mx.sym.BilinearSampler(data=conv_feat_split[1], grid=flow_grid_1, name='warping_feat_1')
+        warp_conv_feat_2 = mx.sym.BilinearSampler(data=conv_feat_split[2], grid=flow_grid_2, name='warping_feat_2')
+        agg_feat = conv_feat_split[0] + warp_conv_feat_1 + warp_conv_feat_2
+        agg_feat = agg_feat / 3.0
+        conv_feats = mx.sym.SliceChannel(agg_feat, axis=1, num_outputs=2)
+        org_feats = mx.sym.SliceChannel(conv_feat, axis=1, num_outputs=2)
 
         # RPN layers
-        rpn_feat =cur_conv_feat[0]
+        rpn_feat = conv_feats[0]
         rpn_cls_score = mx.sym.Convolution(
             data=rpn_feat, kernel=(1, 1), pad=(0, 0), num_filter=2 * num_anchors, name="rpn_cls_score")
         rpn_bbox_pred = mx.sym.Convolution(
@@ -990,7 +998,7 @@ class resnet_v1_101_flownet_rfcn(Symbol):
 
         delta_loss_weight = mx.symbol.slice_axis(bbox_weight, axis=1, begin=4, end=8)
         delta_loss_weight_copies = mx.sym.tile(delta_loss_weight, reps=(2, 1))
-        delta_loss_ = delta_loss_weight_copies * 10.0*  mx.sym.smooth_l1(name='delta_loss_', scalar=1.0, data=(roi_delta_pred- delta_label))
+        delta_loss_ = delta_loss_weight_copies * 100.0*  mx.sym.smooth_l1(name='delta_loss_', scalar=1.0, data=(roi_delta_pred- delta_label))
         delta_loss = mx.sym.MakeLoss(name='delta_loss', data=delta_loss_, grad_scale=1.0 / cfg.TRAIN.RPN_BATCH_SIZE)
 
         #generate delta rois and slice to rois_delta
@@ -1024,28 +1032,11 @@ class resnet_v1_101_flownet_rfcn(Symbol):
         roi_delta_addbatchdim = mx.symbol.Concat(*[roi_copies_batch, roi_delta], dim=1)
         rois_delta = mx.sym.SliceChannel(roi_delta_addbatchdim, axis=0, num_outputs=2)
 
-        rfcn_cls = mx.sym.Convolution(data=conv_feats[1], kernel=(1, 1), num_filter=7 * 7 * num_classes, name="rfcn_cls")
-        rfcn_bbox = mx.sym.Convolution(data=cur_conv_feat[1], kernel=(1, 1), num_filter=7 * 7 * 4 * num_reg_classes,
+        rfcn_cls = mx.sym.Convolution(data=org_feats[1], kernel=(1, 1), num_filter=7 * 7 * num_classes, name="rfcn_cls")
+        rfcn_bbox = mx.sym.Convolution(data=conv_feats[1], kernel=(1, 1), num_filter=7 * 7 * 4 * num_reg_classes,
                                        name="rfcn_bbox")
 
         rfcn_cls_slice = mx.sym.SliceChannel(rfcn_cls, axis=0, num_outputs=3)
-        # flow warp
-        flow = mx.sym.SliceChannel(delta, axis=0, num_outputs=2)
-        flow_grid_1 = mx.sym.GridGenerator(data=flow[0], transform_type='warp', name='flow_grid_1')
-        flow_grid_2 = mx.sym.GridGenerator(data=flow[1], transform_type='warp', name='flow_grid_2')
-        warp_conv_feat_1 = mx.sym.BilinearSampler(data=rfcn_cls_slice[1], grid=flow_grid_1, name='warping_feat_1')
-        warp_conv_feat_2 = mx.sym.BilinearSampler(data=rfcn_cls_slice[2], grid=flow_grid_2, name='warping_feat_2')
-
-
-        psroipooled_cls_warp_1 = mx.contrib.sym.PSROIPooling(name='psroipooled_cls_warp_1', data=warp_conv_feat_1, rois=rois,
-                                                           group_size=7,
-                                                           pooled_size=7,
-                                                           output_dim=num_classes, spatial_scale=0.0625)
-
-        psroipooled_cls_warp_2 = mx.contrib.sym.PSROIPooling(name='psroipooled_cls_warp_2', data=warp_conv_feat_2, rois=rois,
-                                                           group_size=7,
-                                                           pooled_size=7,
-                                                           output_dim=num_classes, spatial_scale=0.0625)
 
         psroipooled_cls_rois_0 = mx.contrib.sym.PSROIPooling(name='psroipooled_cls_rois_0', data=rfcn_cls_slice[0], rois=rois,
                                                            group_size=7,
@@ -1065,8 +1056,7 @@ class resnet_v1_101_flownet_rfcn(Symbol):
                                                            group_size=7,
                                                            pooled_size=7,
                                                            output_dim=8, spatial_scale=0.0625)
-        psroipooled_cls_rois_mean = psroipooled_cls_warp_1 / 5.0 + psroipooled_cls_warp_2 / 5.0 +\
-                                    psroipooled_cls_rois_0 / 5.0 + psroipooled_cls_rois_1 / 5.0+ psroipooled_cls_rois_2 / 5.0
+        psroipooled_cls_rois_mean = psroipooled_cls_rois_0 / 3.0 + psroipooled_cls_rois_1 / 3.0+ psroipooled_cls_rois_2 / 3.0
 
 
         cls_score = mx.sym.Pooling(name='ave_cls_scors_rois', data=psroipooled_cls_rois_mean, pool_type='avg',
@@ -1283,8 +1273,8 @@ class resnet_v1_101_flownet_rfcn(Symbol):
                                                                rois=org_delta,
                                                                group_size=7, pooled_size=7,
                                                                output_dim=num_classes, spatial_scale=0.0625)
-            psroipooled_cls_rois_sum += psroipooled_cls_rois
-            psroipooled_cls_rois_sum += warp_psroipooled_cls_rois
+                psroipooled_cls_rois_sum += psroipooled_cls_rois
+                psroipooled_cls_rois_sum += warp_psroipooled_cls_rois
         psroipooled_cls_rois_sum = psroipooled_cls_rois_sum / (data_range *2)
         psroipooled_loc_rois = mx.contrib.sym.PSROIPooling(name='psroipooled_loc_rois', data=rfcn_bbox, rois=rois,
                                                            group_size=7, pooled_size=7,
