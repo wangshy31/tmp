@@ -142,7 +142,6 @@ def sample_rois(rois, delta_list, fg_rois_per_image, rois_per_image, num_classes
         delta_list_shape = delta_list.shape
         bef_delta = delta_list[0:delta_list_shape[0]/2]
         aft_delta = delta_list[delta_list_shape[0]/2: delta_list_shape[0]]
-        t_g = gt_boxes[gt_assignment, :4]
         bef_label = bef_delta[gt_assignment,:]
         aft_label = aft_delta[gt_assignment,:]
 
@@ -178,13 +177,12 @@ def sample_rois(rois, delta_list, fg_rois_per_image, rois_per_image, num_classes
     aft_label = aft_label[keep_indexes]
     #print 'bef_label: ', bef_label[:3]
     #print 'aft_label: ', aft_label[:3]
-    t_g = t_g[keep_indexes]
     # set labels of bg_rois to be 0
     labels[fg_rois_per_this_image:] = 0
     rois = rois[keep_indexes]
 
     delta_label = np.append(bef_label, aft_label, axis=0)
-    tile_t_g = np.tile(t_g, (2,1))
+
     # load or compute bbox_target
     if bbox_targets is not None:
         bbox_target_data = bbox_targets[keep_indexes, :]
@@ -195,8 +193,15 @@ def sample_rois(rois, delta_list, fg_rois_per_image, rois_per_image, num_classes
                        / np.array(cfg.TRAIN.BBOX_STDS))
         bbox_target_data = np.hstack((labels[:, np.newaxis], targets))
 
-    bbox_targets, bbox_weights = \
+    bbox_targets, bbox_weights, delta_weights = \
         expand_bbox_regression_targets(bbox_target_data, num_classes, cfg)
 
-    return rois, labels, bbox_targets, bbox_weights, delta_label, tile_t_g
+    delta_weights = np.tile(delta_weights, reps=(2,1))
+    count = 0
+    for item in delta_label:
+        if (item==0).all():
+            delta_weights[count,:] = 0
+        count+=1
+
+    return rois, labels, bbox_targets, bbox_weights, delta_label, delta_weights
 

@@ -901,7 +901,8 @@ class resnet_v1_101_flownet_rfcn(Symbol):
         agg_feat = conv_feat_split[0] + warp_conv_feat_1 + warp_conv_feat_2
         agg_feat = agg_feat / 3.0
         conv_feats = mx.sym.SliceChannel(agg_feat, axis=1, num_outputs=2)
-        org_feats = mx.sym.SliceChannel(conv_feat, axis=1, num_outputs=2)
+        org_feat = mx.symbol.Concat(*[agg_feat, conv_feat_split[1], conv_feat_split[2]], dim=0)
+        org_feats = mx.sym.SliceChannel(org_feat, axis=1, num_outputs=2)
 
         # RPN layers
         rpn_feat = conv_feats[0]
@@ -955,7 +956,7 @@ class resnet_v1_101_flownet_rfcn(Symbol):
 
         # ROI proposal target
         gt_boxes_reshape = mx.sym.Reshape(data=gt_boxes, shape=(-1, 5), name='gt_boxes_reshape')
-        rois, label, bbox_target, bbox_weight, delta_label, t_g = mx.sym.Custom(rois=rois, gt_boxes=gt_boxes_reshape,
+        rois, label, bbox_target, bbox_weight, delta_label, delta_weight = mx.sym.Custom(rois=rois, gt_boxes=gt_boxes_reshape,
                                                               delta_list=concat_bef_aft_delta,
                                                               op_type='proposal_target',
                                                               num_classes=num_reg_classes,
@@ -996,9 +997,9 @@ class resnet_v1_101_flownet_rfcn(Symbol):
         roi_delta_pred = mx.symbol.Concat(*[roipooled_delta_x_ip2_slice[0], roipooled_delta_y_ip2_slice[0],
                                             roipooled_delta_x_ip2_slice[1], roipooled_delta_y_ip2_slice[1]], dim=1)
 
-        delta_loss_weight = mx.symbol.slice_axis(bbox_weight, axis=1, begin=4, end=8)
-        delta_loss_weight_copies = mx.sym.tile(delta_loss_weight, reps=(2, 1))
-        delta_loss_ = delta_loss_weight_copies * 100.0*  mx.sym.smooth_l1(name='delta_loss_', scalar=1.0, data=(roi_delta_pred- delta_label))
+        delta_loss_weight = mx.symbol.slice_axis(delta_weight, axis=1, begin=4, end=8)
+        #delta_loss_weight_copies = mx.sym.tile(delta_loss_weight, reps=(2, 1))
+        delta_loss_ = delta_loss_weight * 100.0*  mx.sym.smooth_l1(name='delta_loss_', scalar=1.0, data=(roi_delta_pred- delta_label))
         delta_loss = mx.sym.MakeLoss(name='delta_loss', data=delta_loss_, grad_scale=1.0 / cfg.TRAIN.RPN_BATCH_SIZE)
 
         #generate delta rois and slice to rois_delta

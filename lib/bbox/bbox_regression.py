@@ -126,6 +126,7 @@ def expand_bbox_regression_targets(bbox_targets_data, num_classes, cfg):
         num_classes = 2
     bbox_targets = np.zeros((classes.size, 4 * num_classes), dtype=np.float32)
     bbox_weights = np.zeros(bbox_targets.shape, dtype=np.float32)
+    delta_weights = np.zeros(bbox_targets.shape, dtype=np.float32)
     indexes = np.where(classes > 0)[0]
     for index in indexes:
         cls = classes[index]
@@ -133,5 +134,6 @@ def expand_bbox_regression_targets(bbox_targets_data, num_classes, cfg):
         end = start + 4
         bbox_targets[index, start:end] = bbox_targets_data[index, 1:]
         bbox_weights[index, start:end] = cfg.TRAIN.BBOX_WEIGHTS
-    return bbox_targets, bbox_weights
+        delta_weights[index, start:end] = cfg.TRAIN.BBOX_WEIGHTS
+    return bbox_targets, bbox_weights, delta_weights
 
