@@ -999,7 +999,7 @@ class resnet_v1_101_flownet_rfcn(Symbol):
 
         delta_loss_weight = mx.symbol.slice_axis(delta_weight, axis=1, begin=4, end=8)
         #delta_loss_weight_copies = mx.sym.tile(delta_loss_weight, reps=(2, 1))
-        delta_loss_ = delta_loss_weight * 100.0*  mx.sym.smooth_l1(name='delta_loss_', scalar=1.0, data=(roi_delta_pred- delta_label))
+        delta_loss_ = delta_loss_weight * 10.0*  mx.sym.smooth_l1(name='delta_loss_', scalar=1.0, data=(roi_delta_pred- delta_label))
         delta_loss = mx.sym.MakeLoss(name='delta_loss', data=delta_loss_, grad_scale=1.0 / cfg.TRAIN.RPN_BATCH_SIZE)
 
         #generate delta rois and slice to rois_delta
@@ -1136,6 +1136,8 @@ class resnet_v1_101_flownet_rfcn(Symbol):
         # make data_range copies of the center frame to pass through FlowNet
         cur_data = mx.symbol.slice_axis(data_cache, axis=0, begin=cfg.TEST.KEY_FRAME_INTERVAL, end=cfg.TEST.KEY_FRAME_INTERVAL+1)
         cur_feat = mx.symbol.slice_axis(feat_cache, axis=0, begin=cfg.TEST.KEY_FRAME_INTERVAL, end=cfg.TEST.KEY_FRAME_INTERVAL+1)
+        bef_feat = mx.symbol.slice_axis(feat_cache, axis=0, begin=0, end=cfg.TEST.KEY_FRAME_INTERVAL)
+        aft_feat = mx.symbol.slice_axis(feat_cache, axis=0, begin=cfg.TEST.KEY_FRAME_INTERVAL+1, end=data_range)
         cur_data_copies = mx.sym.tile(cur_data, reps=(data_range, 1, 1, 1))
         flow_input = mx.symbol.Concat(cur_data_copies / 255.0, data_cache / 255.0, dim=1)
         delta = self.get_flownet(flow_input)
@@ -1152,10 +1154,14 @@ class resnet_v1_101_flownet_rfcn(Symbol):
         warp_feat_slice = mx.sym.SliceChannel(conv_feat, axis=0, num_outputs=data_range)
         conv_feat_warp_mean = 0
         for i in range(data_range):
-            conv_feat_warp_mean += warp_feat_slice[i]
-        conv_feat_warp_mean = conv_feat_warp_mean/data_range
+            if i == cfg.TEST.KEY_FRAME_INTERVAL:
+                conv_feat_warp_mean = conv_feat_warp_mean +  warp_feat_slice[i]/3.0
+            else:
+                conv_feat_warp_mean = conv_feat_warp_mean +  warp_feat_slice[i]*2.0 / 3.0 / (data_range-1)
+#        conv_feat_warp_mean = conv_feat_warp_mean/data_range
         agg_feat = mx.symbol.slice_axis(conv_feat_warp_mean, axis=1, begin=0, end=1024)
-        org_feat = mx.symbol.slice_axis(feat_cache, axis=1, begin=0, end=1024)
+        org_feat = mx.symbol.Concat(bef_feat, conv_feat_warp_mean , aft_feat, dim=0)
+        org_feat = mx.symbol.slice_axis(org_feat, axis=1, begin=0, end=1024)
         agg_feats = mx.sym.SliceChannel(agg_feat, axis=1, num_outputs=2)
         org_feats = mx.sym.SliceChannel(org_feat, axis=1, num_outputs=2)
 
@@ -1279,17 +1285,19 @@ class resnet_v1_101_flownet_rfcn(Symbol):
         psroipooled_cls_rois_sum = 0
         #org_delta = rois_delta[cfg.TEST.KEY_FRAME_INTERVAL]
         for i in range(data_range):
+            if i == cfg.TEST.KEY_FRAME_INTERVAL:
+                psroipooled_cls_rois = mx.contrib.sym.PSROIPooling(name='psroipooled_cls_rois', data=rfcn_cls_slice[i],
+                                                               rois=rois,
+                                                               group_size=7, pooled_size=7,
+                                                               output_dim=num_classes, spatial_scale=0.0625)
+                psroipooled_cls_rois_sum += psroipooled_cls_rois / 3.0
+            else:
                 psroipooled_cls_rois = mx.contrib.sym.PSROIPooling(name='psroipooled_cls_rois', data=rfcn_cls_slice[i],
                                                                rois=rois_delta[i],
                                                                group_size=7, pooled_size=7,
                                                                output_dim=num_classes, spatial_scale=0.0625)
-                #warp_psroipooled_cls_rois = mx.contrib.sym.PSROIPooling(name='warp_psroipooled_cls_rois', data=warp_cls_slice[i],
-                                                               #rois=org_delta,
-                                                               #group_size=7, pooled_size=7,
-                                                               #output_dim=num_classes, spatial_scale=0.0625)
-                psroipooled_cls_rois_sum += psroipooled_cls_rois
-                #psroipooled_cls_rois_sum += warp_psroipooled_cls_rois
-        psroipooled_cls_rois_sum = psroipooled_cls_rois_sum / data_range
+                psroipooled_cls_rois_sum += psroipooled_cls_rois *2.0 / 3.0 / (data_range-1)
+        #psroipooled_cls_rois_sum = psroipooled_cls_rois_sum / data_range
         psroipooled_loc_rois = mx.contrib.sym.PSROIPooling(name='psroipooled_loc_rois', data=rfcn_bbox, rois=rois,
                                                            group_size=7, pooled_size=7,
                                                            output_dim=8, spatial_scale=0.0625)
