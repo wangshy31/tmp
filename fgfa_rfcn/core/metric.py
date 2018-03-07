@@ -17,11 +17,12 @@ def get_rpn_names():
 
 
 def get_rcnn_names(cfg):
-    pred = ['rcnn_cls_prob', 'rcnn_bbox_loss', 'delta_loss']
+    pred = ['rcnn_cls_prob', 'rcnn_bbox_loss', 'delta_loss', 'cls_occluded_prob']
     label = ['rcnn_label', 'rcnn_bbox_target', 'rcnn_bbox_weight']
     if cfg.TRAIN.ENABLE_OHEM or cfg.TRAIN.END2END:
         pred.append('rcnn_label')
         pred.append('delta_label')
+        pred.append('occluded_label')
     if cfg.TRAIN.END2END:
         rpn_pred, rpn_label = get_rpn_names()
         pred = rpn_pred + pred
@@ -136,6 +137,54 @@ class RCNNLogLossMetric(mx.metric.EvalMetric):
         self.sum_metric += cls_loss
         self.num_inst += label.shape[0]
 
+class RCNNOccludedLossMetric(mx.metric.EvalMetric):
+    def __init__(self, cfg):
+        super(RCNNOccludedLossMetric, self).__init__('RCNNOccludedLoss')
+        self.e2e = cfg.TRAIN.END2END
+        self.ohem = cfg.TRAIN.ENABLE_OHEM
+        self.pred, self.label = get_rcnn_names(cfg)
+
+    def update(self, labels, preds):
+        pred = preds[self.pred.index('cls_occluded_prob')]
+        label = preds[self.pred.index('occluded_label')]
+
+        last_dim = pred.shape[-1]
+        pred = pred.asnumpy().reshape(-1, last_dim)
+        label = label.asnumpy().reshape(-1,).astype('int32')
+
+        # filter with keep_inds
+        keep_inds = np.where(label != -1)[0]
+        label = label[keep_inds]
+        cls = pred[keep_inds, label]
+
+        cls += 1e-14
+        cls_loss = -1 * np.log(cls)
+        cls_loss = np.sum(cls_loss)
+        self.sum_metric += cls_loss
+        self.num_inst += label.shape[0]
+
+class RCNNOccludedAccMetric(mx.metric.EvalMetric):
+    def __init__(self, cfg):
+        super(RCNNOccludedAccMetric, self).__init__('RCNNOccludedAcc')
+        self.e2e = cfg.TRAIN.END2END
+        self.ohem = cfg.TRAIN.ENABLE_OHEM
+        self.pred, self.label = get_rcnn_names(cfg)
+
+    def update(self, labels, preds):
+        pred = preds[self.pred.index('cls_occluded_prob')]
+        label = preds[self.pred.index('occluded_label')]
+
+        last_dim = pred.shape[-1]
+        pred_label = pred.asnumpy().reshape(-1, last_dim).argmax(axis=1).astype('int32')
+        label = label.asnumpy().reshape(-1,).astype('int32')
+
+        # filter with keep_inds
+        keep_inds = np.where(label != -1)
+        pred_label = pred_label[keep_inds]
+        label = label[keep_inds]
+
+        self.sum_metric += np.sum(pred_label.flat == label.flat)
+        self.num_inst += len(pred_label.flat)
 
 class RPNL1LossMetric(mx.metric.EvalMetric):
     def __init__(self):

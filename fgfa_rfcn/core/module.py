@@ -1060,7 +1060,6 @@ class MutableModule(BaseModule):
         #print 'rois: ', self._curr_module.get_outputs(merge_multi_context=merge_multi_context)[-4].asnumpy()[:2, :]
         #print 't_g: ', self._curr_module.get_outputs(merge_multi_context=merge_multi_context)[-3].asnumpy()[:2, :]
         #print 'roipooled_delta_ip2: ', self._curr_module.get_outputs(merge_multi_context=merge_multi_context)[-2].asnumpy()[:2, :]
-        #print 'roi_delta: ', self._curr_module.get_outputs(merge_multi_context=merge_multi_context)[-1].asnumpy()[:2, :]
         return self._curr_module.get_outputs(merge_multi_context=merge_multi_context)
     def get_input_grads(self, merge_multi_context=True):
         assert self.binded and self.params_initialized and self.inputs_need_grad

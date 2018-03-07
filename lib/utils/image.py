@@ -210,6 +210,7 @@ def get_triple_image(roidb, config):
         im_info = [im_tensor.shape[2], im_tensor.shape[3], im_scale]
         new_rec['boxes'] = roi_rec['boxes'].copy() * im_scale
         new_rec['im_info'] = im_info
+        new_rec['occluded'] = roi_rec['occluded']
 
         bef_delta = np.zeros_like(new_rec['boxes'], dtype=float)
         aft_delta = np.zeros_like(new_rec['boxes'], dtype=float)

@@ -113,6 +113,7 @@ def get_rpn_triple_batch(roidb, cfg):
         gt_boxes = np.empty((roidb[0]['boxes'].shape[0], 5), dtype=np.float32)
         gt_boxes[:, 0:4] = roidb[0]['boxes'][gt_inds, :]
         gt_boxes[:, 4] = roidb[0]['gt_classes'][gt_inds]
+        occluded = roidb[0]['occluded'][gt_inds]
     else:
         gt_boxes = np.empty((0, 5), dtype=np.float32)
 
@@ -122,7 +123,8 @@ def get_rpn_triple_batch(roidb, cfg):
             'im_info': im_info}
     label = {'gt_boxes': gt_boxes,
              'bef_delta': bef_delta[0],
-             'aft_delta': aft_delta[0]}
+             'aft_delta': aft_delta[0],
+             'occluded': occluded}
 
     return data, label
 

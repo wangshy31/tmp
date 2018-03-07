@@ -118,7 +118,7 @@ def get_rcnn_batch(roidb, cfg):
 
 
 def sample_rois(rois, delta_list, fg_rois_per_image, rois_per_image, num_classes, cfg,
-                labels=None, overlaps=None, bbox_targets=None, gt_boxes=None):
+                labels=None, overlaps=None, bbox_targets=None, gt_boxes=None, occluded=None):
     """
     generate random sample of ROIs comprising foreground and background examples
     :param rois: all_rois [n, 4]; e2e: [n, 5] with batch_index
@@ -139,6 +139,7 @@ def sample_rois(rois, delta_list, fg_rois_per_image, rois_per_image, num_classes
         gt_assignment = overlaps.argmax(axis=1)
         overlaps = overlaps.max(axis=1)
         labels = gt_boxes[gt_assignment, 4]
+        occluded_label = occluded[gt_assignment]
         delta_list_shape = delta_list.shape
         bef_delta = delta_list[0:delta_list_shape[0]/2]
         aft_delta = delta_list[delta_list_shape[0]/2: delta_list_shape[0]]
@@ -173,12 +174,14 @@ def sample_rois(rois, delta_list, fg_rois_per_image, rois_per_image, num_classes
 
     # select labels
     labels = labels[keep_indexes]
+    occluded_label = occluded_label[keep_indexes]
     bef_label = bef_label[keep_indexes]
     aft_label = aft_label[keep_indexes]
     #print 'bef_label: ', bef_label[:3]
     #print 'aft_label: ', aft_label[:3]
     # set labels of bg_rois to be 0
     labels[fg_rois_per_this_image:] = 0
+    occluded_label[fg_rois_per_this_image:] = -1
     rois = rois[keep_indexes]
 
     delta_label = np.append(bef_label, aft_label, axis=0)
@@ -203,5 +206,5 @@ def sample_rois(rois, delta_list, fg_rois_per_image, rois_per_image, num_classes
             delta_weights[count,:] = 0
         count+=1
 
-    return rois, labels, bbox_targets, bbox_weights, delta_label, delta_weights
+    return rois, labels, bbox_targets, bbox_weights, delta_label, delta_weights, occluded_label
 

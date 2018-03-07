@@ -11,8 +11,8 @@ default:
   frequent: 100
   kvstore: device
 network:
-  pretrained: "./model/pretrained_model/resnet_v1_101"
-  pretrained_flow: "./model/pretrained_model/flownet"
+  pretrained: "./model/pretrained_model/mean_manet"
+  #pretrained_flow: "./model/pretrained_model/flownet"
   pretrained_epoch: 0
   PIXEL_MEANS:
   - 103.06
@@ -49,7 +49,8 @@ dataset:
   NUM_CLASSES: 31
   dataset: ImageNetVID
   dataset_path: "./data/ILSVRC2015"
-  image_set: DET_train_30classes+VID_train_15frames
+  #image_set: DET_train_30classes+VID_train_15frames
+  image_set: VID_pretrain_data
   root_path: "./data"
   test_image_set: VID_val_videos
   proposal: rpn
@@ -57,13 +58,13 @@ dataset:
   enable_detailed_eval: true
 TRAIN:
   lr: 0.00025
-  lr_step: '1.333'
+  lr_step: '0.666'
   warmup: false
-  begin_epoch: 1
-  end_epoch: 3
+  begin_epoch: 0
+  end_epoch: 1
   model_prefix: 'fgfa_rfcn_vid'
   # whether resume training
-  RESUME: true
+  RESUME: false
   # whether flip image
   FLIP: true
   # whether shuffle image
@@ -142,4 +143,4 @@ TEST:
   RPN_MIN_SIZE: 0
   # RCNN nms
   NMS: 0.3
-  test_epoch: 3
+  test_epoch: 1

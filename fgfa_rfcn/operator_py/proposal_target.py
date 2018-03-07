@@ -42,6 +42,7 @@ class ProposalTargetOperator(mx.operator.CustomOp):
         all_rois = in_data[0].asnumpy()
         gt_boxes = in_data[1].asnumpy()
         delta_list = in_data[2].asnumpy()
+        occluded = in_data[3].asnumpy()
 
         if self._batch_rois == -1:
             rois_per_image = all_rois.shape[0] + gt_boxes.shape[0]
@@ -57,8 +58,8 @@ class ProposalTargetOperator(mx.operator.CustomOp):
         # Sanity check: single batch only
         assert np.all(all_rois[:, 0] == 0), 'Only single item batches are supported'
 
-        rois, labels, bbox_targets, bbox_weights, delta_label, delta_weights = \
-            sample_rois(all_rois, delta_list, fg_rois_per_image, rois_per_image, self._num_classes, self._cfg, gt_boxes=gt_boxes)
+        rois, labels, bbox_targets, bbox_weights, delta_label, delta_weights, occluded_label = \
+            sample_rois(all_rois, delta_list, fg_rois_per_image, rois_per_image, self._num_classes, self._cfg, gt_boxes=gt_boxes, occluded=occluded)
 
         if DEBUG:
             print "labels=", labels
@@ -72,13 +73,14 @@ class ProposalTargetOperator(mx.operator.CustomOp):
             print 'num bg avg: {}'.format(self._bg_num / self._count)
             print 'ratio: {:.3f}'.format(float(self._fg_num) / float(self._bg_num))
 
-        for ind, val in enumerate([rois, labels, bbox_targets, bbox_weights, delta_label, delta_weights]):
+        for ind, val in enumerate([rois, labels, bbox_targets, bbox_weights, delta_label, delta_weights, occluded_label]):
             self.assign(out_data[ind], req[ind], val)
 
     def backward(self, req, out_grad, in_data, out_data, in_grad, aux):
         self.assign(in_grad[0], req[0], 0)
         self.assign(in_grad[1], req[1], 0)
         self.assign(in_grad[2], req[2], 0)
+        self.assign(in_grad[3], req[3], 0)
 
 
 @mx.operator.register('proposal_target')
@@ -92,27 +94,29 @@ class ProposalTargetProp(mx.operator.CustomOpProp):
         self._fg_fraction = float(fg_fraction)
 
     def list_arguments(self):
-        return ['rois', 'gt_boxes', 'delta_list']
+        return ['rois', 'gt_boxes', 'delta_list', 'occluded']
 
     def list_outputs(self):
-        return ['rois_output', 'label', 'bbox_target', 'bbox_weight', 'delta_label', 'delta_weight']
+        return ['rois_output', 'label', 'bbox_target', 'bbox_weight', 'delta_label', 'delta_weight', 'occluded_label']
 
     def infer_shape(self, in_shape):
         rpn_rois_shape = in_shape[0]
         gt_boxes_shape = in_shape[1]
         delta_list_shape = in_shape[2]
+        occluded_shape = in_shape[3]
 
         rois = rpn_rois_shape[0] + gt_boxes_shape[0] if self._batch_rois == -1 else self._batch_rois
 
         output_rois_shape = (rois, 5)
         label_shape = (rois, )
+        occluded_label_shape = (rois, )
         bbox_target_shape = (rois, self._num_classes * 4)
         bbox_weight_shape = (rois, self._num_classes * 4)
         delta_label_shape = (rois*2, 4)
         delta_weight_shape = (rois*2, 8)
 
-        return [rpn_rois_shape, gt_boxes_shape, delta_list_shape], \
-               [output_rois_shape, label_shape, bbox_target_shape, bbox_weight_shape, delta_label_shape, delta_weight_shape]
+        return [rpn_rois_shape, gt_boxes_shape, delta_list_shape, occluded_shape], \
+               [output_rois_shape, label_shape, bbox_target_shape, bbox_weight_shape, delta_label_shape, delta_weight_shape, occluded_label_shape]
 
     def create_operator(self, ctx, shapes, dtypes):
         return ProposalTargetOperator(self._num_classes, self._batch_images, self._batch_rois, self._cfg, self._fg_fraction)
