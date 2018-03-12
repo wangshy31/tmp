@@ -1038,7 +1038,7 @@ class resnet_v1_101_flownet_rfcn(Symbol):
 
 
 
-        rfcn_occluded = mx.sym.Convolution(data=cur_conv_feats[1], kernel=(1, 1), num_filter=7 * 7 * 2, name="rfcn_occluded")
+        rfcn_occluded = mx.sym.Convolution(data=mx.sym.BlockGrad(cur_conv_feats[1]), kernel=(1, 1), num_filter=7 * 7 * 2, name="rfcn_occluded")
         psroipooled_occluded_rois = mx.contrib.sym.PSROIPooling(name='psroipooled_occluded_rois', data=rfcn_occluded, rois=rois,
                                                            group_size=7,
                                                            pooled_size=7,
@@ -1048,7 +1048,7 @@ class resnet_v1_101_flownet_rfcn(Symbol):
                                    kernel=(7, 7))
         cls_occluded = mx.sym.Reshape(name='cls_occluded_reshape', data=cls_occluded, shape=(-1, 2))
         cls_occluded_prob = mx.sym.SoftmaxOutput(name='cls_occluded_prob', data=cls_occluded, label=occluded_label,
-                                                 grad_scale=1.0 / cfg.TRAIN.RPN_BATCH_SIZE,
+                                                 grad_scale=1.0 / cfg.TRAIN.RPN_BATCH_SIZE/10.0,
                                                  normalization='valid',
                                                  use_ignore=True, ignore_label=-1)
         cls_occluded_prob = mx.sym.Reshape(data=cls_occluded_prob, shape=(cfg.TRAIN.BATCH_IMAGES, -1, 2),
@@ -1378,7 +1378,7 @@ class resnet_v1_101_flownet_rfcn(Symbol):
                                    kernel=(7, 7))
 
         # classification
-        cls_score_combine = cls_score#*cls_occluded_tile + cls_score_flow*(1-cls_occluded_tile)
+        cls_score_combine = cls_score*cls_occluded_tile + cls_score_flow*(1-cls_occluded_tile)
         cls_score_combine = mx.sym.Reshape(name='cls_score_reshape', data=cls_score_combine, shape=(-1, num_classes))
         cls_prob = mx.sym.SoftmaxActivation(name='cls_prob', data=cls_score_combine)
         # bounding box regression
