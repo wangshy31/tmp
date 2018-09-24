@@ -141,10 +141,10 @@ def sample_rois(rois, delta_list, fg_rois_per_image, rois_per_image, num_classes
         labels = gt_boxes[gt_assignment, 4]
         occluded_label = occluded[gt_assignment]
         delta_list_shape = delta_list.shape
-        bef_delta = delta_list[0:delta_list_shape[0]/2]
-        aft_delta = delta_list[delta_list_shape[0]/2: delta_list_shape[0]]
-        bef_label = bef_delta[gt_assignment,:]
-        aft_label = aft_delta[gt_assignment,:]
+        delta_bef = delta_list[0:delta_list_shape[0]/2]
+        delta_aft = delta_list[delta_list_shape[0]/2: delta_list_shape[0]]
+        bef_label = delta_bef[gt_assignment,:]
+        aft_label = delta_aft[gt_assignment,:]
 
     # foreground RoI with FG_THRESH overlap
     fg_indexes = np.where(overlaps >= cfg.TRAIN.FG_THRESH)[0]

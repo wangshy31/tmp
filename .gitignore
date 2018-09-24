@@ -20,6 +20,9 @@ Session.vim
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
+*/*/*.pyc
+*/*.pyc
+*.pyc
 *$py.class
 
 # C extensions
@@ -89,5 +92,6 @@ lib/nms/*.cpp
 external
 output
 model
+*/.ropeproject/
 
 .db

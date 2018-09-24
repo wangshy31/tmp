@@ -87,8 +87,8 @@ def train_net(args, ctx, pretrained, pretrained_flow, epoch, prefix, begin_epoch
                       ('data_aft', (config.TRAIN.BATCH_IMAGES, 3, max([v[0] for v in config.SCALES]), max([v[1] for v in config.SCALES])))]
     max_data_shape, max_label_shape = train_data.infer_shape(max_data_shape)
     max_data_shape.append(('gt_boxes', (config.TRAIN.BATCH_IMAGES, 100, 5)))
-    max_data_shape.append(('bef_delta', (config.TRAIN.BATCH_IMAGES, 100, 4)))
-    max_data_shape.append(('aft_delta', (config.TRAIN.BATCH_IMAGES, 100, 4)))
+    max_data_shape.append(('delta_bef_gt', (config.TRAIN.BATCH_IMAGES, 100, 4)))
+    max_data_shape.append(('delta_aft_gt', (config.TRAIN.BATCH_IMAGES, 100, 4)))
     print 'providing maximum shape', max_data_shape, max_label_shape
 
     data_shape_dict = dict(train_data.provide_data_single + train_data.provide_label_single)
@@ -101,9 +101,9 @@ def train_net(args, ctx, pretrained, pretrained_flow, epoch, prefix, begin_epoch
         arg_params, aux_params = load_param(prefix, begin_epoch, convert=True)
     else:
         arg_params, aux_params = load_param(pretrained, epoch, convert=True)
-        #arg_params_flow, aux_params_flow = load_param(pretrained_flow, epoch, convert=True)
-        #arg_params.update(arg_params_flow)
-        #aux_params.update(aux_params_flow)
+        arg_params_flow, aux_params_flow = load_param(pretrained_flow, epoch, convert=True)
+        arg_params.update(arg_params_flow)
+        aux_params.update(aux_params_flow)
 
         sym_instance.init_weight(config, arg_params, aux_params)
 

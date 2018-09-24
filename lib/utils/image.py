@@ -5,7 +5,11 @@ import random
 from PIL import Image
 from bbox.bbox_transform import clip_boxes
 from bbox.bbox_transform import bbox_transform
+from bbox.bbox_transform import bbox_pred
 import xml.etree.ElementTree as ET
+import imageio
+import cv2
+
 
 
 # TODO: This two functions should be merged with individual data loader
@@ -96,14 +100,31 @@ def get_pair_image(roidb, config):
         processed_roidb.append(new_rec)
     return processed_ims, processed_ref_ims, processed_eq_flags, processed_roidb
 
+def check_movements(ims, bef_ims, aft_ims, processed_roidb, delta_bef_roi, delta_aft_roi):
+    save_name = '/home/wangshiyao/Documents/testdata/'+processed_roidb[0]['image'].split('/')[-1]
+    print 'saving images to '+save_name
+    boxes = processed_roidb[0]['boxes']
+    ims.squeeze().transpose(1, 2, 0).astype(np.int8)
+    bef_ims.squeeze().transpose(1, 2, 0).astype(np.int8)
+    aft_ims.squeeze().transpose(1, 2, 0).astype(np.int8)
+    delta_bef_roi = np.array(delta_bef_roi).transpose(1, 0, 2)
+    delta_aft_roi = np.array(delta_aft_roi).transpose(1, 0, 2)
+    for i in range(boxes.shape[0]):
+        cv2.rectangle(ims, (int(boxes[i][0]), int(boxes[i][1])),(int(boxes[i][2]), int(boxes[i][3])),(55, 255, 155),5)
+        bef_box = bbox_pred(boxes[i].reshape(1, -1), delta_bef_roi[i])
+        cv2.rectangle(bef_ims, (int(bef_box[0][0]), int(bef_box[0][1])),(int(bef_box[0][2]), int(bef_box[0][3])),(55, 255, 155),5)
+        aft_box = bbox_pred(boxes[i].reshape(1, -1), delta_aft_roi[i])
+        cv2.rectangle(aft_ims, (int(aft_box[0][0]), int(aft_box[0][1])),(int(aft_box[0][2]), int(aft_box[0][3])),(55, 255, 155),5)
+
+    imageio.imsave(save_name, ims)
+    imageio.imsave(save_name.split('.')[-2]+'_bef'+'.JPEG', bef_ims)
+    imageio.imsave(save_name.split('.')[-2]+'_aft'+'.JPEG', aft_ims)
+
 def get_delta_roi(filename, roi_rec, im_scale):
-    #print roi_rec['image']
-    #print filename
     trackid = roi_rec['gt_trackid']
     boxes = roi_rec['boxes']
     boxes = boxes * im_scale
     delta = np.zeros_like(roi_rec['boxes'], dtype=float)
-    delta_tracker = np.zeros_like(roi_rec['boxes'], dtype=float)
     dic = {}
 
     tree = ET.parse(filename)
@@ -134,16 +155,9 @@ def get_delta_roi(filename, roi_rec, im_scale):
 
 
     for i in range(len(trackid)):
-        if trackid[i] in dic.keys():
+        if trackid[i] in dic:
             delta_trans = bbox_transform(np.array([boxes[i]]), np.array([dic[trackid[i]]]))
-            delta_tracker[i][:] = dic[trackid[i]]
             delta[i][:] = delta_trans[0]
-
-    #print '###generate delta once###'
-    #print 'io, boxes: : ', boxes
-    #print 'io, tracker: : ', delta_tracker
-    #print 'io, norm target: : ', delta
-
 
     return delta
 
@@ -162,12 +176,11 @@ def get_triple_image(roidb, config):
     processed_bef_ims = []
     processed_aft_ims = []
     processed_roidb = []
-    processed_bef_deltaroi = []
-    processed_aft_deltaroi = []
+    processed_delta_bef_roi = []
+    processed_delta_aft_roi = []
 
     for i in range(num_images):
         roi_rec = roidb[i]
-        #print roi_rec['image']
         assert os.path.exists(roi_rec['image']), '%s does not exist'.format(roi_rec['image'])
         im = cv2.imread(roi_rec['image'], cv2.IMREAD_COLOR|cv2.IMREAD_IGNORE_ORIENTATION)
         bef_image = ''
@@ -212,22 +225,19 @@ def get_triple_image(roidb, config):
         new_rec['im_info'] = im_info
         new_rec['occluded'] = roi_rec['occluded']
 
-        bef_delta = np.zeros_like(new_rec['boxes'], dtype=float)
-        aft_delta = np.zeros_like(new_rec['boxes'], dtype=float)
+        delta_bef = np.zeros_like(new_rec['boxes'], dtype=float)
+        delta_aft = np.zeros_like(new_rec['boxes'], dtype=float)
         if roi_rec.has_key('pattern'):
             bef_annotation = bef_image.replace('Data', 'Annotations').replace('.JPEG','.xml')
             aft_annotation = aft_image.replace('Data', 'Annotations').replace('.JPEG','.xml')
-            bef_delta = get_delta_roi(bef_annotation, roi_rec, im_scale)
-            aft_delta = get_delta_roi(aft_annotation, roi_rec, im_scale)
-        #print 'bef label after scale: ', bef_delta
-        #print 'aft label after scale: ', aft_delta
-        #print 'new_rec[boxes], scale ', new_rec['boxes'], im_scale
+            delta_bef = get_delta_roi(bef_annotation, roi_rec, im_scale)
+            delta_aft = get_delta_roi(aft_annotation, roi_rec, im_scale)
         processed_roidb.append(new_rec)
-        processed_bef_deltaroi.append(bef_delta)
-        processed_aft_deltaroi.append(aft_delta)
+        processed_delta_bef_roi.append(delta_bef)
+        processed_delta_aft_roi.append(delta_aft)
 
-
-    return processed_ims, processed_bef_ims, processed_aft_ims, processed_roidb, processed_bef_deltaroi, processed_aft_deltaroi
+    #check_movements(im, bef_im, aft_im, processed_roidb, processed_delta_bef_roi, processed_delta_aft_roi)
+    return processed_ims, processed_bef_ims, processed_aft_ims, processed_roidb, processed_delta_bef_roi, processed_delta_aft_roi
 
 def resize(im, target_size, max_size, stride=0, interpolation = cv2.INTER_LINEAR):
     """

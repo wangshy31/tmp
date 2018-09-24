@@ -183,7 +183,7 @@ class AnchorLoader(mx.io.DataIter):
 
         # decide data and label names
         if config.TRAIN.END2END:
-            self.data_name = ['data', 'data_bef', 'data_aft', 'im_info', 'gt_boxes', 'bef_delta', 'aft_delta', 'occluded']
+            self.data_name = ['data', 'data_bef', 'data_aft', 'im_info', 'gt_boxes', 'delta_bef_gt', 'delta_aft_gt', 'occluded']
         else:
             self.data_name = ['data']
         self.label_name = ['label', 'bbox_target', 'bbox_weight']
@@ -364,8 +364,8 @@ class AnchorLoader(mx.io.DataIter):
         # add gt_boxes to data for e2e
         data['gt_boxes'] = label['gt_boxes'][np.newaxis, :, :]
         data['occluded'] = label['occluded']
-        data['bef_delta'] = label['bef_delta']
-        data['aft_delta'] = label['aft_delta']
+        data['delta_bef_gt'] = label['delta_bef_gt']
+        data['delta_aft_gt'] = label['delta_aft_gt']
         # assign anchor for label
         label = assign_anchor(feat_shape, label['gt_boxes'], data['im_info'], self.cfg,
                               self.feat_stride, self.anchor_scales,
@@ -373,7 +373,7 @@ class AnchorLoader(mx.io.DataIter):
                               self.normalize_target, self.bbox_mean, self.bbox_std)
         #print '###################################begin parfetch##########################'
         #print 'data[gt_boxes]', data['gt_boxes']
-        #print 'data[bef_delta]', data['bef_delta']
-        #print 'data[aft_delta]', data['aft_delta']
+        #print 'data[delta_bef]', data['delta_bef']
+        #print 'data[delta_aft]', data['delta_aft']
         return {'data': data, 'label': label}
 
