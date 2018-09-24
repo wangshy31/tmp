@@ -5,15 +5,11 @@ import random
 from PIL import Image
 from bbox.bbox_transform import clip_boxes
 from bbox.bbox_transform import bbox_transform
-<<<<<<< HEAD
-import xml.etree.ElementTree as ET
-=======
 from bbox.bbox_transform import bbox_pred
 import xml.etree.ElementTree as ET
 import imageio
 import cv2
 
->>>>>>> combine
 
 
 # TODO: This two functions should be merged with individual data loader
@@ -104,11 +100,6 @@ def get_pair_image(roidb, config):
         processed_roidb.append(new_rec)
     return processed_ims, processed_ref_ims, processed_eq_flags, processed_roidb
 
-<<<<<<< HEAD
-def get_delta_roi(filename, roi_rec, im_scale):
-    #print roi_rec['image']
-    #print filename
-=======
 def check_movements(ims, bef_ims, aft_ims, processed_roidb, delta_bef_roi, delta_aft_roi):
     save_name = '/home/wangshiyao/Documents/testdata/'+processed_roidb[0]['image'].split('/')[-1]
     print 'saving images to '+save_name
@@ -130,15 +121,10 @@ def check_movements(ims, bef_ims, aft_ims, processed_roidb, delta_bef_roi, delta
     imageio.imsave(save_name.split('.')[-2]+'_aft'+'.JPEG', aft_ims)
 
 def get_delta_roi(filename, roi_rec, im_scale):
->>>>>>> combine
     trackid = roi_rec['gt_trackid']
     boxes = roi_rec['boxes']
     boxes = boxes * im_scale
     delta = np.zeros_like(roi_rec['boxes'], dtype=float)
-<<<<<<< HEAD
-    delta_tracker = np.zeros_like(roi_rec['boxes'], dtype=float)
-=======
->>>>>>> combine
     dic = {}
 
     tree = ET.parse(filename)
@@ -169,24 +155,9 @@ def get_delta_roi(filename, roi_rec, im_scale):
 
 
     for i in range(len(trackid)):
-<<<<<<< HEAD
-        if trackid[i] in dic.keys():
-            delta_trans = bbox_transform(np.array([boxes[i]]), np.array([dic[trackid[i]]]))
-            delta_tracker[i][:] = dic[trackid[i]]
-            delta[i][:] = delta_trans[0]
-
-    #print '###generate delta once###'
-    #print 'io, boxes: : ', boxes
-    #print 'io, tracker: : ', delta_tracker
-    #print 'io, norm target: : ', delta
-
-
-=======
         if trackid[i] in dic:
             delta_trans = bbox_transform(np.array([boxes[i]]), np.array([dic[trackid[i]]]))
             delta[i][:] = delta_trans[0]
-
->>>>>>> combine
     return delta
 
 def get_triple_image(roidb, config):
@@ -204,20 +175,11 @@ def get_triple_image(roidb, config):
     processed_bef_ims = []
     processed_aft_ims = []
     processed_roidb = []
-<<<<<<< HEAD
-    processed_bef_deltaroi = []
-    processed_aft_deltaroi = []
-
-    for i in range(num_images):
-        roi_rec = roidb[i]
-        #print roi_rec['image']
-=======
     processed_delta_bef_roi = []
     processed_delta_aft_roi = []
 
     for i in range(num_images):
         roi_rec = roidb[i]
->>>>>>> combine
         assert os.path.exists(roi_rec['image']), '%s does not exist'.format(roi_rec['image'])
         im = cv2.imread(roi_rec['image'], cv2.IMREAD_COLOR|cv2.IMREAD_IGNORE_ORIENTATION)
         bef_image = ''
