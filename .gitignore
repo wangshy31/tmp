@@ -20,6 +20,12 @@ Session.vim
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
+<<<<<<< HEAD
+=======
+*/*/*.pyc
+*/*.pyc
+*.pyc
+>>>>>>> combine
 *$py.class
 
 # C extensions
@@ -89,7 +95,11 @@ lib/nms/*.cpp
 external
 output
 model
+<<<<<<< HEAD
 data
 demo
+=======
+*/.ropeproject/
+>>>>>>> combine
 
 .db

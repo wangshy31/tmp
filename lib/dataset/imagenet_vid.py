@@ -143,6 +143,7 @@ class ImageNetVID(IMDB):
         size = tree.find('size')
         roi_rec['height'] = float(size.find('height').text)
         roi_rec['width'] = float(size.find('width').text)
+
         #im_size = cv2.imread(roi_rec['image'], cv2.IMREAD_COLOR|cv2.IMREAD_IGNORE_ORIENTATION).shape
         #assert im_size[0] == roi_rec['height'] and im_size[1] == roi_rec['width']
 
@@ -154,7 +155,7 @@ class ImageNetVID(IMDB):
         gt_trackid = np.zeros((num_objs), dtype=np.int32)
         overlaps = np.zeros((num_objs, self.num_classes), dtype=np.float32)
         valid_objs = np.zeros((num_objs), dtype=np.bool)
-
+        occluded = np.zeros((num_objs), dtype=np.int32)
         class_to_index = dict(zip(self.classes_map, range(self.num_classes)))
         # Load object bounding boxes into a data frame.
         for ix, obj in enumerate(objs):
@@ -171,6 +172,7 @@ class ImageNetVID(IMDB):
             boxes[ix, :] = [x1, y1, x2, y2]
             gt_classes[ix] = cls
             if self.det_vid == 'VID':
+                occluded[ix] = obj.find('occluded').text
                 gt_trackid[ix] = obj.find('trackid').text
             overlaps[ix, cls] = 1.0
 
@@ -178,6 +180,7 @@ class ImageNetVID(IMDB):
         gt_classes = gt_classes[valid_objs]
         gt_trackid = gt_trackid[valid_objs]
         overlaps = overlaps[valid_objs, :]
+        occluded = occluded[valid_objs]
 
         assert (boxes[:, 2] >= boxes[:, 0]).all()
 
@@ -187,6 +190,7 @@ class ImageNetVID(IMDB):
                         'gt_overlaps': overlaps,
                         'max_classes': overlaps.argmax(axis=1),
                         'max_overlaps': overlaps.max(axis=1),
+                        'occluded': occluded,
                         'flipped': False})
         return roi_rec
 
