@@ -128,8 +128,8 @@ def get_resnet_output(predictor, data_batch, data_names):
     output_all = predictor.predict(data_batch)
     data_dict_all = [dict(zip(data_names, data_batch.data[i])) for i in xrange(len(data_batch.data))]
 
-    if output_all[0].has_key('conv_embed_output'):
-        feat = output_all[0]['conv_embed_output']
+    if output_all[0].has_key('feat_conv_3x3_relu_output'):
+        feat = output_all[0]['feat_conv_3x3_relu_output']
     else:
         feat = None
     return data_dict_all[0]['data'], feat.copy()
