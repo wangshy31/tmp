@@ -25,6 +25,12 @@ network:
   - conv1
   - res2
   - bn
+  - flow
+  - conv
+  - res
+  - Convolution
+  - deconv
+
   ANCHOR_RATIOS:
   - 0.5
   - 1
@@ -50,6 +56,7 @@ dataset:
   dataset: ImageNetVID
   dataset_path: "./data/ILSVRC2015"
   image_set: DET_train_30classes+VID_train_15frames
+  #image_set: VID_pretrain_data
   #image_set: DET_train_30classes
   #image_set: VID_train_15frames
   #image_set: VID_vis_videos
@@ -64,7 +71,7 @@ TRAIN:
   warmup: false
   begin_epoch: 0
   end_epoch: 2
-  model_prefix: 'fgfa_rfcn_vid'
+  model_prefix: 'manet_rfcn_vid'
   # whether resume training
   RESUME: false
   # whether flip image
@@ -145,4 +152,4 @@ TEST:
   RPN_MIN_SIZE: 0
   # RCNN nms
   NMS: 0.4
-  test_epoch: 1
+  test_epoch: 3

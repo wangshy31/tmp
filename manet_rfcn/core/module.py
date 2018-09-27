@@ -968,7 +968,7 @@ class MutableModule(BaseModule):
                 if monitor is not None:
                     monitor.tic()
                 self.forward_backward(data_batch)
-                a = self.get_outputs()
+                #a = self.get_outputs()
                 #print a
                 self.update()
                 self.update_metric(eval_metric, data_batch.label)

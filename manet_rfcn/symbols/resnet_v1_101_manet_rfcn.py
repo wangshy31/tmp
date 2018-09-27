@@ -1037,19 +1037,19 @@ class resnet_v1_101_manet_rfcn(Symbol):
 
         # motion pattern reasoning
         # predict probability of occlusion
-        rfcn_occluded = mx.sym.Convolution(data=mx.sym.BlockGrad(cur_conv_feats[1]), kernel=(1, 1), num_filter=7 * 7 * 2, name="rfcn_occluded")
-        psroipooled_occluded_rois = mx.contrib.sym.PSROIPooling(name='psroipooled_occluded_rois', data=rfcn_occluded, rois=rois,
-                                                           group_size=7,
-                                                           pooled_size=7,
-                                                           output_dim=2, spatial_scale=0.0625)
-        cls_occluded = mx.sym.Pooling(name='ave_cls_occluded_rois', data=psroipooled_occluded_rois, pool_type='avg',
-                                   global_pool=True,
-                                   kernel=(7, 7))
-        cls_occluded = mx.sym.Reshape(name='cls_occluded_reshape', data=cls_occluded, shape=(-1, 2))
-        cls_occluded_prob = mx.sym.SoftmaxOutput(name='cls_occluded_prob', data=cls_occluded, label=occluded_label,
-                                                 grad_scale=1.0 / cfg.TRAIN.RPN_BATCH_SIZE,
-                                                 normalization='valid',
-                                                 use_ignore=True, ignore_label=-1)
+        #rfcn_occluded = mx.sym.Convolution(data=mx.sym.BlockGrad(cur_conv_feats[1]), kernel=(1, 1), num_filter=7 * 7 * 2, name="rfcn_occluded")
+        #psroipooled_occluded_rois = mx.contrib.sym.PSROIPooling(name='psroipooled_occluded_rois', data=rfcn_occluded, rois=rois,
+                                                           #group_size=7,
+                                                           #pooled_size=7,
+                                                           #output_dim=2, spatial_scale=0.0625)
+        #cls_occluded = mx.sym.Pooling(name='ave_cls_occluded_rois', data=psroipooled_occluded_rois, pool_type='avg',
+                                   #global_pool=True,
+                                   #kernel=(7, 7))
+        #cls_occluded = mx.sym.Reshape(name='cls_occluded_reshape', data=cls_occluded, shape=(-1, 2))
+        #cls_occluded_prob = mx.sym.SoftmaxOutput(name='cls_occluded_prob', data=cls_occluded, label=occluded_label,
+                                                 #grad_scale=1.0 / cfg.TRAIN.RPN_BATCH_SIZE,
+                                                 #normalization='valid',
+                                                 #use_ignore=True, ignore_label=-1)
         #cls_occluded_prob = mx.sym.Reshape(data=cls_occluded_prob, shape=(cfg.TRAIN.BATCH_IMAGES, -1, 2),
                                   #name='cls_occluded_reshape')
         #cls_occluded_slice = mx.sym.SliceChannel(cls_occluded_prob, axis=2, num_outputs=2)
@@ -1106,7 +1106,9 @@ class resnet_v1_101_manet_rfcn(Symbol):
         bbox_loss = mx.sym.Reshape(data=bbox_loss, shape=(cfg.TRAIN.BATCH_IMAGES, -1, 4 * num_reg_classes),
                                    name='bbox_loss_reshape')
 
-        group = mx.sym.Group([rpn_cls_prob, rpn_bbox_loss, cls_prob, bbox_loss, delta_loss, cls_occluded_prob, mx.sym.BlockGrad(rcnn_label),
+        #group = mx.sym.Group([rpn_cls_prob, rpn_bbox_loss, cls_prob, bbox_loss, delta_loss, cls_occluded_prob, mx.sym.BlockGrad(rcnn_label),
+                              #mx.sym.BlockGrad(delta_label), mx.sym.BlockGrad(occluded_label), mx.sym.BlockGrad(rfcn_cls)])
+        group = mx.sym.Group([rpn_cls_prob, rpn_bbox_loss, cls_prob, bbox_loss, delta_loss, mx.sym.BlockGrad(rcnn_label),
                               mx.sym.BlockGrad(delta_label), mx.sym.BlockGrad(occluded_label), mx.sym.BlockGrad(rfcn_cls)])
         self.sym = group
         return group
@@ -1375,5 +1377,5 @@ class resnet_v1_101_manet_rfcn(Symbol):
         arg_params['rfcn_bbox_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['rfcn_bbox_weight'])
         arg_params['rfcn_bbox_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['rfcn_bbox_bias'])
 
-        arg_params['rfcn_occluded_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['rfcn_occluded_weight'])
-        arg_params['rfcn_occluded_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['rfcn_occluded_bias'])
+        #arg_params['rfcn_occluded_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['rfcn_occluded_weight'])
+        #arg_params['rfcn_occluded_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['rfcn_occluded_bias'])
