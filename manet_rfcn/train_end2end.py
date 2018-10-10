@@ -1,9 +1,8 @@
 # --------------------------------------------------------
-# Flow-Guided Feature Aggregation
-# Copyright (c) 2016 by Contributors
-# Copyright (c) 2017 Microsoft
+# Fully Motion-Aware Network for Video Object Detection
 # Licensed under The Apache-2.0 License [see LICENSE for details]
-# Modified by Yuqing Zhu, Shuhao Fu, Yuwen Xiong
+# Extend FGFA by adding instance-level aggregation and motion pattern reasoning
+# Modified by Shiyao Wang
 # --------------------------------------------------------
 
 import _init_paths

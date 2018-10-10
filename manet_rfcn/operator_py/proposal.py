@@ -1,3 +1,10 @@
+# --------------------------------------------------------
+# Fully Motion-Aware Network for Video Object Detection
+# Extend FGFA by adding instance-level aggregation and motion pattern reasoning
+# Modified by Shiyao Wang
+# --------------------------------------------------------
+
+
 """
 Proposal Operator transform anchor coordinates into ROI coordinates with prediction results on
 classification probability and bounding box prediction results, and image size and scale information.

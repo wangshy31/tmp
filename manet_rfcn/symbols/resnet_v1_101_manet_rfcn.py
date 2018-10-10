@@ -1,8 +1,7 @@
 # --------------------------------------------------------
-# Flow-Guided Feature Aggregation
-# Copyright (c) 2017 Microsoft
+# Fully Motion-Aware Network for Video Object Detection
 # Licensed under The Apache-2.0 License [see LICENSE for details]
-# Written by Yuqing Zhu, Shuhao Fu, Yuwen Xiong, Xizhou Zhu
+# Written by Shiyao Wang, Yucong Zhou, Junjie Yan, Zhidong Deng
 # --------------------------------------------------------
 
 import cPickle
