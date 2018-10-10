@@ -1211,10 +1211,10 @@ class resnet_v1_101_manet_rfcn(Symbol):
                                                spatial_scale=0.0625)
         for i in range(1, data_range):
             nearby_deltas_xy = mx.sym.SliceChannel(deltas[i], axis=1, num_outputs=2)
-            nearby_deltas_x = mx.symbol.ROIPooling(name='nearby_deltas_x', data=deltas_xy[0], rois=rois,
+            nearby_deltas_x = mx.symbol.ROIPooling(name='nearby_deltas_x', data=nearby_deltas_xy[0], rois=rois,
                                                pooled_size=(7,7),
                                                spatial_scale=0.0625)
-            nearby_deltas_y = mx.symbol.ROIPooling(name='nearby_deltas_y', data=deltas_xy[1], rois=rois,
+            nearby_deltas_y = mx.symbol.ROIPooling(name='nearby_deltas_y', data=nearby_deltas_xy[1], rois=rois,
                                                pooled_size=(7,7),
                                                spatial_scale=0.0625)
             deltas_x = mx.symbol.Concat(*[deltas_x, nearby_deltas_x], dim=0)
