@@ -103,7 +103,6 @@ def train_net(args, ctx, pretrained, pretrained_flow, epoch, prefix, begin_epoch
         arg_params_flow, aux_params_flow = load_param(pretrained_flow, epoch, convert=True)
         arg_params.update(arg_params_flow)
         aux_params.update(aux_params_flow)
-
         sym_instance.init_weight(config, arg_params, aux_params)
 
     # check parameter shapes
@@ -130,12 +129,12 @@ def train_net(args, ctx, pretrained, pretrained_flow, epoch, prefix, begin_epoch
     eval_metric = metric.RCNNAccMetric(config)
     cls_metric = metric.RCNNLogLossMetric(config)
     bbox_metric = metric.RCNNL1LossMetric(config)
-    #occluded_metric = metric.RCNNOccludedLossMetric(config)
-    #occluded_eval_metric = metric.RCNNOccludedAccMetric(config)
+    occluded_metric = metric.RCNNOccludedLossMetric(config)
+    occluded_eval_metric = metric.RCNNOccludedAccMetric(config)
     eval_metrics = mx.metric.CompositeEvalMetric()
     # rpn_eval_metric, rpn_cls_metric, rpn_bbox_metric, eval_metric, cls_metric, bbox_metric
-    #for child_metric in [rpn_eval_metric, rpn_cls_metric, rpn_bbox_metric, delta_metric, eval_metric, cls_metric, bbox_metric, occluded_metric, occluded_eval_metric]:
-    for child_metric in [rpn_eval_metric, rpn_cls_metric, rpn_bbox_metric, delta_metric, eval_metric, cls_metric, bbox_metric]:
+    #for child_metric in [rpn_eval_metric, rpn_cls_metric, rpn_bbox_metric, delta_metric, eval_metric, cls_metric, bbox_metric]:
+    for child_metric in [rpn_eval_metric, rpn_cls_metric, rpn_bbox_metric, delta_metric, eval_metric, cls_metric, bbox_metric, occluded_metric, occluded_eval_metric]:
         eval_metrics.add(child_metric)
     # callback
     batch_end_callback = callback.Speedometer(train_data.batch_size, frequent=args.frequent)

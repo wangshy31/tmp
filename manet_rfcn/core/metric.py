@@ -17,13 +17,13 @@ def get_rpn_names():
 
 
 def get_rcnn_names(cfg):
-    #pred = ['rcnn_cls_prob', 'rcnn_bbox_loss', 'delta_loss', 'cls_occluded_prob']
-    pred = ['rcnn_cls_prob', 'rcnn_bbox_loss', 'delta_loss']
+    pred = ['rcnn_cls_prob', 'rcnn_bbox_loss', 'delta_loss', 'cls_occluded_prob']
+    #pred = ['rcnn_cls_prob', 'rcnn_bbox_loss', 'delta_loss']
     label = ['rcnn_label', 'rcnn_bbox_target', 'rcnn_bbox_weight']
     if cfg.TRAIN.ENABLE_OHEM or cfg.TRAIN.END2END:
         pred.append('rcnn_label')
         pred.append('delta_label')
-        #pred.append('occluded_label')
+        pred.append('occluded_label')
     if cfg.TRAIN.END2END:
         rpn_pred, rpn_label = get_rpn_names()
         pred = rpn_pred + pred
