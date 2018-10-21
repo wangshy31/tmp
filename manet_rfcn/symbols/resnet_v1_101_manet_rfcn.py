@@ -971,7 +971,7 @@ class resnet_v1_101_manet_rfcn(Symbol):
 
         # loss for instance-level movements
         delta_loss_weight = mx.symbol.slice_axis(delta_weight, axis=1, begin=4, end=8)
-        delta_loss_ = delta_loss_weight * 100.0*  mx.sym.smooth_l1(name='delta_loss_', scalar=1.0, data=(delta_pred - delta_label))
+        delta_loss_ = delta_loss_weight * 10.0*  mx.sym.smooth_l1(name='delta_loss_', scalar=1.0, data=(delta_pred - delta_label))
         delta_loss = mx.sym.MakeLoss(name='delta_loss', data=delta_loss_, grad_scale=1.0 / cfg.TRAIN.RPN_BATCH_SIZE)
 
 
@@ -1113,8 +1113,7 @@ class resnet_v1_101_manet_rfcn(Symbol):
                                    name='bbox_loss_reshape')
 
         group = mx.sym.Group([rpn_cls_prob, rpn_bbox_loss, cls_prob, bbox_loss, delta_loss, cls_occluded_prob, mx.sym.BlockGrad(rcnn_label),
-                              mx.sym.BlockGrad(delta_label), mx.sym.BlockGrad(occluded_label), mx.sym.BlockGrad(rfcn_cls),
-                              mx.sym.BlockGrad(motion_weight_norm)])
+                              mx.sym.BlockGrad(delta_label), mx.sym.BlockGrad(occluded_label), mx.sym.BlockGrad(rfcn_cls)])
         #group = mx.sym.Group([rpn_cls_prob, rpn_bbox_loss, cls_prob, bbox_loss, delta_loss, mx.sym.BlockGrad(rcnn_label),
                               #mx.sym.BlockGrad(delta_label), mx.sym.BlockGrad(occluded_label), mx.sym.BlockGrad(rfcn_cls)])
         self.sym = group
@@ -1167,10 +1166,8 @@ class resnet_v1_101_manet_rfcn(Symbol):
             else:
                 conv_feat_warp_mean = conv_feat_warp_mean +  warp_feat_slice[i] * 2.0 / 3.0 / (data_range-1)
 
-        agg_feat = mx.symbol.slice_axis(conv_feat_warp_mean, axis=1, begin=0, end=1024)
         org_feat = mx.symbol.Concat(bef_feat, conv_feat_warp_mean , aft_feat, cur_feat, dim=0)
-        org_feat = mx.symbol.slice_axis(org_feat, axis=1, begin=0, end=1024)
-        agg_feats = mx.sym.SliceChannel(agg_feat, axis=1, num_outputs=2)
+        agg_feats = mx.sym.SliceChannel(conv_feat_warp_mean, axis=1, num_outputs=2)
         org_feats = mx.sym.SliceChannel(org_feat, axis=1, num_outputs=2)
 
         # RPN
@@ -1269,21 +1266,21 @@ class resnet_v1_101_manet_rfcn(Symbol):
                                                            output_dim=num_classes, spatial_scale=0.0625)
 
         #instance-level aggregation
-        cur_rfcn_cls_slice = mx.sym.SliceChannel(org_feats[1], axis=0, num_outputs=data_range+1)
-        cur_rfcn_cls = cur_rfcn_cls_slice[data_range]
         psroipooled_cls_rois_mean = 0
         for i in range(data_range):
             if i == cfg.TEST.KEY_FRAME_INTERVAL:
-                psroipooled_cls_rois = mx.contrib.sym.PSROIPooling(name='psroipooled_cls_rois', data=cur_rfcn_cls,
-                                                               rois=rois,
-                                                               group_size=7, pooled_size=7,
-                                                               output_dim=num_classes, spatial_scale=0.0625)
+                psroipooled_cls_rois = mx.contrib.sym.PSROIPooling(name='psroipooled_cls_rois',
+                                                                   data=rfcn_cls_slice[data_range],
+                                                                   rois=rois,
+                                                                   group_size=7, pooled_size=7,
+                                                                   output_dim=num_classes, spatial_scale=0.0625)
                 psroipooled_cls_rois_mean += psroipooled_cls_rois / 3.0
             else:
-                psroipooled_cls_rois = mx.contrib.sym.PSROIPooling(name='psroipooled_cls_rois', data=rfcn_cls_slice[i],
-                                                               rois=rois_nearby[i],
-                                                               group_size=7, pooled_size=7,
-                                                               output_dim=num_classes, spatial_scale=0.0625)
+                psroipooled_cls_rois = mx.contrib.sym.PSROIPooling(name='psroipooled_cls_rois',
+                                                                   data=rfcn_cls_slice[i],
+                                                                   rois=rois_nearby[i],
+                                                                   group_size=7, pooled_size=7,
+                                                                   output_dim=num_classes, spatial_scale=0.0625)
                 psroipooled_cls_rois_mean += psroipooled_cls_rois * 2.0 / 3.0 / (data_range-1)
 
         cls_score_instance = mx.sym.Pooling(name='ave_cls_scors_instance', data=psroipooled_cls_rois_mean, pool_type='avg',
@@ -1294,7 +1291,8 @@ class resnet_v1_101_manet_rfcn(Symbol):
                                    kernel=(7, 7))
         # motion pattern reasoning
         # predict probability of occlusion
-        rfcn_occluded = mx.sym.Convolution(data=cur_rfcn_cls, kernel=(1, 1), num_filter=7 * 7 * 2, name="rfcn_occluded")
+        cur_feats = mx.sym.SliceChannel(cur_feat, axis=1, num_outputs=2)
+        rfcn_occluded = mx.sym.Convolution(data=cur_feats[1], kernel=(1, 1), num_filter=7 * 7 * 2, name="rfcn_occluded")
         psroipooled_occluded_rois = mx.contrib.sym.PSROIPooling(name='psroipooled_occluded_rois', data=rfcn_occluded, rois=rois,
                                                            group_size=7,
                                                            pooled_size=7,
@@ -1313,10 +1311,11 @@ class resnet_v1_101_manet_rfcn(Symbol):
         #Estimate the degree of non-rigidity
         ratio = (pred_w+self.eps) / (pred_h+self.eps)
         ratio_nearby = mx.sym.SliceChannel(ratio, axis=0, num_outputs=data_range)
-        nonrigid = 0.0
-        for i in range(1, data_range):
-            nonrigid = nonrigid + mx.sym.abs(ratio_nearby[i] - ratio_nearby[i-1]) * 0.5
-        nonrigid = nonrigid*1.0 / (data_range-1)
+        #nonrigid = 0.0
+        #for i in range(1, data_range):
+            #nonrigid = nonrigid + mx.sym.abs(ratio_nearby[i] - ratio_nearby[i-1]) * 0.5
+        #nonrigid = nonrigid*1.0 / (data_range-1)
+        nonrigid = mx.sym.abs((ratio_nearby[cfg.TEST.KEY_FRAME_INTERVAL+5] - ratio_nearby[cfg.TEST.KEY_FRAME_INTERVAL-5]) * 0.5)
         nonrigid = mx.sym.Reshape(name='nonrigid_reshape', data = nonrigid, shape=(-1,1,1,1))
         motion_weight = (nonrigid + self.eps) / (cls_occluded_slice + self.eps)
         motion_weight_norm = mx.sym.Activation(name='motion_weight_norm', data=motion_weight - 1.0, act_type='sigmoid')
@@ -1336,18 +1335,14 @@ class resnet_v1_101_manet_rfcn(Symbol):
                                    global_pool=True,
                                    kernel=(7, 7))
         # bounding box regression
-        bbox_pred = mx.sym.Reshape(name='bbox_pred_reshape', data=bbox_pred, shape=(-1, 4 * num_reg_classes))
-
+        bbox_pred = mx.sym.Reshape(data=bbox_pred, shape=(cfg.TEST.BATCH_IMAGES, -1, 4 * num_reg_classes),
+                                   name='bbox_pred_reshape')
         # reshape output
         cls_prob = mx.sym.Reshape(data=cls_prob, shape=(cfg.TEST.BATCH_IMAGES, -1, num_classes),
                                   name='cls_prob_reshape')
-        bbox_pred = mx.sym.Reshape(data=bbox_pred, shape=(cfg.TEST.BATCH_IMAGES, -1, 4 * num_reg_classes),
-                                   name='bbox_pred_reshape')
-
-
 
         # group output
-        group = mx.sym.Group([data_cur, rois, cls_prob, bbox_pred, nonrigid])
+        group = mx.sym.Group([data_cur, rois, cls_prob, bbox_pred])
         self.sym = group
         return group
 

@@ -100,10 +100,10 @@ def train_net(args, ctx, pretrained, pretrained_flow, epoch, prefix, begin_epoch
         arg_params, aux_params = load_param(prefix, begin_epoch, convert=True)
     else:
         arg_params, aux_params = load_param(pretrained, epoch, convert=True)
-        arg_params_flow, aux_params_flow = load_param(pretrained_flow, epoch, convert=True)
-        arg_params.update(arg_params_flow)
-        aux_params.update(aux_params_flow)
-        sym_instance.init_weight(config, arg_params, aux_params)
+        #arg_params_flow, aux_params_flow = load_param(pretrained_flow, epoch, convert=True)
+        #arg_params.update(arg_params_flow)
+        #aux_params.update(aux_params_flow)
+        sym_instance.init_occluded_weight(config, arg_params, aux_params)
 
     # check parameter shapes
     sym_instance.check_parameter_shapes(arg_params, aux_params, data_shape_dict)
