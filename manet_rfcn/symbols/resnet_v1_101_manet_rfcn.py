@@ -971,7 +971,7 @@ class resnet_v1_101_manet_rfcn(Symbol):
 
         # loss for instance-level movements
         delta_loss_weight = mx.symbol.slice_axis(delta_weight, axis=1, begin=4, end=8)
-        delta_loss_ = delta_loss_weight * 100.0*  mx.sym.smooth_l1(name='delta_loss_', scalar=1.0, data=(delta_pred - delta_label))
+        delta_loss_ = delta_loss_weight * 10.0*  mx.sym.smooth_l1(name='delta_loss_', scalar=1.0, data=(delta_pred - delta_label))
         delta_loss = mx.sym.MakeLoss(name='delta_loss', data=delta_loss_, grad_scale=1.0 / cfg.TRAIN.RPN_BATCH_SIZE)
 
 
@@ -1043,14 +1043,19 @@ class resnet_v1_101_manet_rfcn(Symbol):
         cls_occluded = mx.sym.Pooling(name='ave_cls_occluded_rois', data=psroipooled_occluded_rois, pool_type='avg',
                                    global_pool=True,
                                    kernel=(7, 7))
+        #a,b,c = cls_occluded.infer_shape(data=(1,3,600,900), data_bef=(1,3,600,900), data_aft=(1,3,600,900), gt_boxes=(1,100,5), delta_bef_gt=(1,100,4), delta_aft_gt=(1,100,4), occluded=(1,100,1))
+        #print 'shape!!!!', b
         cls_occluded_reshape = mx.sym.Reshape(name='cls_occluded_reshape', data=cls_occluded, shape=(-1, 2))
         cls_occluded_prob = mx.sym.SoftmaxOutput(name='cls_occluded_prob', data=cls_occluded_reshape, label=occluded_label,
                                                  grad_scale=1.0 / cfg.TRAIN.RPN_BATCH_SIZE,
                                                  normalization='valid',
                                                  use_ignore=True, ignore_label=-1)
+
         #cls_occluded_prob = mx.sym.Reshape(data=cls_occluded_prob, shape=(cfg.TRAIN.BATCH_IMAGES, -1, 2),
                                   #name='cls_occluded_reshape')
         cls_occluded_slice = mx.sym.SliceChannel(cls_occluded_prob, axis=1, num_outputs=2)
+        #a,b,c = cls_occluded_slice.infer_shape(data=(1,3,600,900), data_bef=(1,3,600,900), data_aft=(1,3,600,900), gt_boxes=(1,100,5), delta_bef_gt=(1,100,4), delta_aft_gt=(1,100,4), occluded=(1,100,1))
+        #print 'shape!!!!', b
         cls_occluded_weight = mx.sym.Reshape(name='cls_occluded_weight', data = cls_occluded_slice[1], shape=(-1,1,1,1))
         occluded_weight_tile = mx.sym.tile(name = 'occluded_weight_tile', reps=(1,num_classes, 1,1), data = cls_occluded_weight)
         #ratio = (mx.sym.BlockGrad(pred_w)+self.eps) / (mx.sym.BlockGrad(pred_h)+self.eps)
@@ -1110,7 +1115,7 @@ class resnet_v1_101_manet_rfcn(Symbol):
                                    name='bbox_loss_reshape')
 
         group = mx.sym.Group([rpn_cls_prob, rpn_bbox_loss, cls_prob, bbox_loss, delta_loss, cls_occluded_prob, mx.sym.BlockGrad(rcnn_label),
-                              mx.sym.BlockGrad(delta_label), mx.sym.BlockGrad(occluded_label), mx.sym.BlockGrad(rfcn_cls)])
+                              mx.sym.BlockGrad(delta_label), mx.sym.BlockGrad(occluded_label)])
         #group = mx.sym.Group([rpn_cls_prob, rpn_bbox_loss, cls_prob, bbox_loss, delta_loss, mx.sym.BlockGrad(rcnn_label),
                               #mx.sym.BlockGrad(delta_label), mx.sym.BlockGrad(occluded_label), mx.sym.BlockGrad(rfcn_cls)])
         self.sym = group
@@ -1303,7 +1308,7 @@ class resnet_v1_101_manet_rfcn(Symbol):
                                   #name='cls_occluded_reshape')
         cls_occluded_slice = mx.sym.SliceChannel(cls_occluded_prob, axis=1, num_outputs=2)
         cls_occluded_weight = mx.sym.Reshape(name='cls_occluded_weight', data = cls_occluded_slice[1], shape=(-1,1,1,1))
-        motion_weight_tile = mx.sym.tile(name = 'motion_weight_tile', reps=(1,num_classes, 1,1), data = cls_occluded_weight)
+        occluded_weight_tile = mx.sym.tile(name = 'occluded_weight_tile', reps=(1,num_classes, 1,1), data = cls_occluded_weight)
 
 
         #Estimate the degree of non-rigidity
