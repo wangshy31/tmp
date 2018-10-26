@@ -174,6 +174,8 @@ class ImageNetVID(IMDB):
             if self.det_vid == 'VID':
                 occluded[ix] = obj.find('occluded').text
                 gt_trackid[ix] = obj.find('trackid').text
+            else:
+                occluded[ix] = -1
             overlaps[ix, cls] = 1.0
 
         boxes = boxes[valid_objs, :]
