@@ -152,4 +152,4 @@ TEST:
   #KEY_FRAME_INTERVAL: 6
   # RCNN nms
   NMS: 0.44
-  test_epoch: 2
+  test_epoch: 1
