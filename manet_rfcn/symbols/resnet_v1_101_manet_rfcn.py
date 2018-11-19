@@ -972,6 +972,8 @@ class resnet_v1_101_manet_rfcn(Symbol):
 
         # loss for instance-level movements
         delta_loss_weight = mx.symbol.slice_axis(delta_weight, axis=1, begin=4, end=8)
+        # we use delta_loss_weight * 100.0 * for phase 1 of training, and
+        # *10.0* for phase 2 and 3.
         delta_loss_ = delta_loss_weight * 10.0*  mx.sym.smooth_l1(name='delta_loss_', scalar=1.0, data=(delta_pred - delta_label))
         delta_loss = mx.sym.MakeLoss(name='delta_loss', data=delta_loss_, grad_scale=1.0 / cfg.TRAIN.RPN_BATCH_SIZE)
 
