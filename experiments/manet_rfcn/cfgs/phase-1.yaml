@@ -70,7 +70,7 @@ TRAIN:
   end_epoch: 3
   model_prefix: 'manet_rfcn_vid'
   # whether predict occlusion
-  USE_OCCLUDED: False
+  USE_OCCLUSION: False
   # whether resume training
   RESUME: false
   # whether flip image

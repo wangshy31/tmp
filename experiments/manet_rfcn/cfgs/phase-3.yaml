@@ -11,7 +11,7 @@ default:
   frequent: 100
   kvstore: device
 network:
-  pretrained: "./model/pretrained_model/manet_rfcn_vid"
+  pretrained: "./imagenet_vid/phase-2/DET_train_30classes_VID_train_15frames/manet_rfcn_vid"
   #pretrained_flow: "./model/pretrained_model/flownet"
   pretrained_epoch: 3
   PIXEL_MEANS:
@@ -56,7 +56,7 @@ dataset:
   dataset: ImageNetVID
   dataset_path: "./data/ILSVRC2015"
   #image_set: DET_train_30classes+VID_train_15frames
-  image_set: DET_train_30classes+VID_pretrain_data
+  image_set: DET_train_30classes+VID_train_every10frames
   root_path: "./data"
   test_image_set: VID_val_videos
   proposal: rpn
@@ -70,7 +70,7 @@ TRAIN:
   end_epoch: 1
   model_prefix: 'manet_rfcn_vid'
   # whether predict occlusion
-  USE_OCCLUDED: True
+  USE_OCCLUSION: True
   # whether resume training
   RESUME: false
   # whether flip image
@@ -152,4 +152,4 @@ TEST:
   #KEY_FRAME_INTERVAL: 6
   # RCNN nms
   NMS: 0.44
-  test_epoch: 1
+  test_epoch: 2

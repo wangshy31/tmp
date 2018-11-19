@@ -1032,30 +1032,31 @@ class resnet_v1_101_manet_rfcn(Symbol):
         psroipooled_cls_rois_mean = psroipooled_cls_rois_reference / 3.0 + psroipooled_cls_rois_bef / 3.0 + psroipooled_cls_rois_aft / 3.0
 
 
+        if cfg.TRAIN.USE_OCCLUSION:
         # predict probability of occlusion
-        #rfcn_occluded = mx.sym.Convolution(data=mx.sym.BlockGrad(cur_conv_feats[1]), kernel=(1, 1), num_filter=7 * 7 * 2, name="rfcn_occluded")
-        #psroipooled_occluded_rois = mx.contrib.sym.PSROIPooling(name='psroipooled_occluded_rois', data=rfcn_occluded, rois=rois,
-                                                           #group_size=7,
-                                                           #pooled_size=7,
-                                                           #output_dim=2, spatial_scale=0.0625)
-        #cls_occluded = mx.sym.Pooling(name='ave_cls_occluded_rois', data=psroipooled_occluded_rois, pool_type='avg',
-                                   #global_pool=True,
-                                   #kernel=(7, 7))
-        #cls_occluded_reshape = mx.sym.Reshape(name='cls_occluded_reshape', data=cls_occluded, shape=(-1, 2))
-        #cls_occluded_prob = mx.sym.SoftmaxOutput(name='cls_occluded_prob', data=cls_occluded_reshape, label=occluded_label,
-                                                 #normalization='valid',
-                                                 #use_ignore=True, ignore_label=-1)
+            rfcn_occluded = mx.sym.Convolution(data=mx.sym.BlockGrad(cur_conv_feats[1]), kernel=(1, 1), num_filter=7 * 7 * 2, name="rfcn_occluded")
+            psroipooled_occluded_rois = mx.contrib.sym.PSROIPooling(name='psroipooled_occluded_rois', data=rfcn_occluded, rois=rois,
+                                                            group_size=7,
+                                                            pooled_size=7,
+                                                            output_dim=2, spatial_scale=0.0625)
+            cls_occluded = mx.sym.Pooling(name='ave_cls_occluded_rois', data=psroipooled_occluded_rois, pool_type='avg',
+                                    global_pool=True,
+                                    kernel=(7, 7))
+            cls_occluded_reshape = mx.sym.Reshape(name='cls_occluded_reshape', data=cls_occluded, shape=(-1, 2))
+            cls_occluded_prob = mx.sym.SoftmaxOutput(name='cls_occluded_prob', data=cls_occluded_reshape, label=occluded_label,
+                                                    normalization='valid',
+                                                    use_ignore=True, ignore_label=-1)
 
-        #cls_occluded_slice = mx.sym.SliceChannel(cls_occluded_prob, axis=1, num_outputs=2)
-        #cls_occluded_weight = mx.sym.Reshape(name='cls_occluded_weight', data = cls_occluded_slice[1], shape=(-1,1,1,1))
-        #ratio = (mx.sym.BlockGrad(pred_w)+self.eps) / (mx.sym.BlockGrad(pred_h)+self.eps)
-        #ratio_nearby = mx.sym.SliceChannel(ratio, axis=0, num_outputs=2)
-        #nonrigid = (ratio_nearby[1] - ratio_nearby[0]) * 0.5
-        #nonrigid = mx.sym.abs(name='nonrigid_abs', data=nonrigid)
-        #nonrigid = mx.sym.Reshape(name='nonrigid_reshape', data = nonrigid, shape=(-1,1,1,1))
-        #motion_weight = (nonrigid + self.eps) / (cls_occluded_weight + self.eps)
-        #motion_weight_norm = mx.sym.Activation(name='motion_weight_norm', data=motion_weight - 1.0, act_type='sigmoid')
-        #motion_weight_tile = mx.sym.tile(name = 'motion_weight_tile', reps=(1,num_classes, 1,1), data = motion_weight_norm)
+            cls_occluded_slice = mx.sym.SliceChannel(cls_occluded_prob, axis=1, num_outputs=2)
+            cls_occluded_weight = mx.sym.Reshape(name='cls_occluded_weight', data = cls_occluded_slice[1], shape=(-1,1,1,1))
+            ratio = (mx.sym.BlockGrad(pred_w)+self.eps) / (mx.sym.BlockGrad(pred_h)+self.eps)
+            ratio_nearby = mx.sym.SliceChannel(ratio, axis=0, num_outputs=2)
+            nonrigid = (ratio_nearby[1] - ratio_nearby[0]) * 0.5
+            nonrigid = mx.sym.abs(name='nonrigid_abs', data=nonrigid)
+            nonrigid = mx.sym.Reshape(name='nonrigid_reshape', data = nonrigid, shape=(-1,1,1,1))
+            motion_weight = (nonrigid + self.eps) / (cls_occluded_weight + self.eps)
+            motion_weight_norm = mx.sym.Activation(name='motion_weight_norm', data=motion_weight - 1.0, act_type='sigmoid')
+            motion_weight_tile = mx.sym.tile(name = 'motion_weight_tile', reps=(1,num_classes, 1,1), data = motion_weight_norm)
 
         cls_score_instance = mx.sym.Pooling(name='ave_cls_scors_instance', data=psroipooled_cls_rois_mean, pool_type='avg',
                                    global_pool=True,
@@ -1067,6 +1068,8 @@ class resnet_v1_101_manet_rfcn(Symbol):
 
         #cls_score_combine = cls_score_instance*(1-motion_weight_tile) + cls_score_pixel*motion_weight_tile
         cls_score_combine = cls_score_instance*0.5 + cls_score_pixel*0.5
+        if cfg.TRAIN.USE_OCCLUSION:
+            cls_score_combine = cls_score_instance*(1-motion_weight_tile) + cls_score_pixel*motion_weight_tile
         bbox_pred = mx.sym.Pooling(name='ave_bbox_pred_rois', data=psroipooled_loc_rois, pool_type='avg',
                                    global_pool=True,
                                    kernel=(7, 7))
@@ -1102,8 +1105,12 @@ class resnet_v1_101_manet_rfcn(Symbol):
         bbox_loss = mx.sym.Reshape(data=bbox_loss, shape=(cfg.TRAIN.BATCH_IMAGES, -1, 4 * num_reg_classes),
                                    name='bbox_loss_reshape')
 
-        group = mx.sym.Group([rpn_cls_prob, rpn_bbox_loss, cls_prob, bbox_loss, delta_loss, mx.sym.BlockGrad(rcnn_label),
-                              mx.sym.BlockGrad(delta_label), mx.sym.BlockGrad(occluded_label)])
+        if cfg.TRAIN.USE_OCCLUSION:
+            group = mx.sym.Group([rpn_cls_prob, rpn_bbox_loss, cls_prob, bbox_loss, delta_loss, cls_occluded_prob, mx.sym.BlockGrad(rcnn_label),
+                                  mx.sym.BlockGrad(delta_label), mx.sym.BlockGrad(occluded_label)])
+        else:
+            group = mx.sym.Group([rpn_cls_prob, rpn_bbox_loss, cls_prob, bbox_loss, delta_loss, mx.sym.BlockGrad(rcnn_label),
+                                  mx.sym.BlockGrad(delta_label), mx.sym.BlockGrad(occluded_label)])
         self.sym = group
         return group
 
@@ -1278,36 +1285,39 @@ class resnet_v1_101_manet_rfcn(Symbol):
         cls_score_pixel = mx.sym.Pooling(name='ave_cls_scors_pixel', data=psroipooled_cls_rois_pixel, pool_type='avg',
                                    global_pool=True,
                                    kernel=(7, 7))
+        if cfg.TRAIN.USE_OCCLUSION:
+            # predict probability of occlusion
+            cur_feats = mx.sym.SliceChannel(cur_feat, axis=1, num_outputs=2)
+            rfcn_occluded = mx.sym.Convolution(data=cur_feats[1], kernel=(1, 1), num_filter=7 * 7 * 2, name="rfcn_occluded")
+            psroipooled_occluded_rois = mx.contrib.sym.PSROIPooling(name='psroipooled_occluded_rois', data=rfcn_occluded, rois=rois,
+                                                            group_size=7,
+                                                            pooled_size=7,
+                                                            output_dim=2, spatial_scale=0.0625)
+            cls_occluded = mx.sym.Pooling(name='ave_cls_occluded_rois', data=psroipooled_occluded_rois, pool_type='avg',
+                                    global_pool=True,
+                                    kernel=(7, 7))
+            cls_occluded_reshape = mx.sym.Reshape(name='cls_occluded_reshape', data=cls_occluded, shape=(-1, 2))
+            cls_occluded_prob = mx.sym.softmax(name='cls_occluded_prob', data=cls_occluded_reshape, axis = 1)
+            cls_occluded_slice = mx.sym.SliceChannel(cls_occluded_prob, axis=1, num_outputs=2)
+            cls_occluded_weight = mx.sym.Reshape(name='cls_occluded_weight', data = cls_occluded_slice[1], shape=(-1,1,1,1))
 
-        # predict probability of occlusion
-        #cur_feats = mx.sym.SliceChannel(cur_feat, axis=1, num_outputs=2)
-        #rfcn_occluded = mx.sym.Convolution(data=cur_feats[1], kernel=(1, 1), num_filter=7 * 7 * 2, name="rfcn_occluded")
-        #psroipooled_occluded_rois = mx.contrib.sym.PSROIPooling(name='psroipooled_occluded_rois', data=rfcn_occluded, rois=rois,
-                                                           #group_size=7,
-                                                           #pooled_size=7,
-                                                           #output_dim=2, spatial_scale=0.0625)
-        #cls_occluded = mx.sym.Pooling(name='ave_cls_occluded_rois', data=psroipooled_occluded_rois, pool_type='avg',
-                                   #global_pool=True,
-                                   #kernel=(7, 7))
-        #cls_occluded_reshape = mx.sym.Reshape(name='cls_occluded_reshape', data=cls_occluded, shape=(-1, 2))
-        #cls_occluded_prob = mx.sym.softmax(name='cls_occluded_prob', data=cls_occluded_reshape, axis = 1)
-        #cls_occluded_slice = mx.sym.SliceChannel(cls_occluded_prob, axis=1, num_outputs=2)
-        #cls_occluded_weight = mx.sym.Reshape(name='cls_occluded_weight', data = cls_occluded_slice[1], shape=(-1,1,1,1))
 
-
-        #Estimate the degree of non-rigidity
-        #ratio = (pred_w+self.eps) / (pred_h+self.eps)
-        #ratio_nearby = mx.sym.SliceChannel(ratio, axis=0, num_outputs=data_range)
-        #nonrigid = mx.sym.abs((ratio_nearby[cfg.TEST.KEY_FRAME_INTERVAL+4] - ratio_nearby[cfg.TEST.KEY_FRAME_INTERVAL-4]) * 0.5)
-        #nonrigid = mx.sym.Reshape(name='nonrigid_reshape', data = nonrigid, shape=(-1,1,1,1))
-        #motion_weight = (nonrigid + self.eps) / (cls_occluded_weight + self.eps)
-        #motion_weight_norm = mx.sym.Activation(name='motion_weight_norm', data=(motion_weight - 1.0), act_type='sigmoid')
-        #motion_weight_tile = mx.sym.tile(name = 'motion_weight_tile', reps=(1,num_classes, 1,1), data = motion_weight_norm)
+            #Estimate the degree of non-rigidity
+            ratio = (pred_w+self.eps) / (pred_h+self.eps)
+            ratio_nearby = mx.sym.SliceChannel(ratio, axis=0, num_outputs=data_range)
+            nonrigid = mx.sym.abs((ratio_nearby[cfg.TEST.KEY_FRAME_INTERVAL+4] - ratio_nearby[cfg.TEST.KEY_FRAME_INTERVAL-4]) * 0.5)
+            nonrigid = mx.sym.Reshape(name='nonrigid_reshape', data = nonrigid, shape=(-1,1,1,1))
+            motion_weight = (nonrigid + self.eps) / (cls_occluded_weight + self.eps)
+            motion_weight_norm = mx.sym.Activation(name='motion_weight_norm', data=(motion_weight - 1.0), act_type='sigmoid')
+            motion_weight_tile = mx.sym.tile(name = 'motion_weight_tile', reps=(1,num_classes, 1,1), data = motion_weight_norm)
 
 
         # combination
         #cls_score_combine = cls_score_instance*(1.0-motion_weight_tile) + cls_score_pixel*motion_weight_tile
         cls_score_combine = cls_score_instance*0.5 + cls_score_pixel*0.5
+        if cfg.TRAIN.USE_OCCLUSION:
+            cls_score_combine = cls_score_instance*(1.0-motion_weight_tile) + cls_score_pixel*motion_weight_tile
+
         cls_score_combine = mx.sym.Reshape(name='cls_score_reshape', data=cls_score_combine, shape=(-1, num_classes))
         cls_prob = mx.sym.SoftmaxActivation(name='cls_prob', data=cls_score_combine)
 
