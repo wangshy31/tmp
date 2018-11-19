@@ -1,7 +1,8 @@
 # --------------------------------------------------------
 # Fully Motion-Aware Network for Video Object Detection
 # Licensed under The Apache-2.0 License [see LICENSE for details]
-# Written by Shiyao Wang, Yucong Zhou, Junjie Yan, Zhidong Deng
+# Extend FGFA by adding instance-level aggregation and motion pattern reasoning
+# Modified by Shiyao Wang
 # --------------------------------------------------------
 
 import cPickle
@@ -1044,13 +1045,9 @@ class resnet_v1_101_manet_rfcn(Symbol):
         cls_occluded_prob = mx.sym.SoftmaxOutput(name='cls_occluded_prob', data=cls_occluded_reshape, label=occluded_label,
                                                  normalization='valid',
                                                  use_ignore=True, ignore_label=-1)
-                                                 #grad_scale=1.0 / cfg.TRAIN.RPN_BATCH_SIZE,
-                                                 #normalization='valid',
-                                                 #use_ignore=True, ignore_label=-1)
 
         cls_occluded_slice = mx.sym.SliceChannel(cls_occluded_prob, axis=1, num_outputs=2)
         cls_occluded_weight = mx.sym.Reshape(name='cls_occluded_weight', data = cls_occluded_slice[1], shape=(-1,1,1,1))
-        #occluded_weight_tile = mx.sym.tile(name = 'occluded_weight_tile', reps=(1,num_classes, 1,1), data = cls_occluded_weight)
         ratio = (mx.sym.BlockGrad(pred_w)+self.eps) / (mx.sym.BlockGrad(pred_h)+self.eps)
         ratio_nearby = mx.sym.SliceChannel(ratio, axis=0, num_outputs=2)
         nonrigid = (ratio_nearby[1] - ratio_nearby[0]) * 0.5
@@ -1069,7 +1066,6 @@ class resnet_v1_101_manet_rfcn(Symbol):
                                    kernel=(7, 7))
 
         cls_score_combine = cls_score_instance*(1-motion_weight_tile) + cls_score_pixel*motion_weight_tile
-        #cls_score_combine = cls_score_instance * 0.5 + cls_score_pixel * 0.5
         bbox_pred = mx.sym.Pooling(name='ave_bbox_pred_rois', data=psroipooled_loc_rois, pool_type='avg',
                                    global_pool=True,
                                    kernel=(7, 7))
@@ -1107,10 +1103,9 @@ class resnet_v1_101_manet_rfcn(Symbol):
 
         group = mx.sym.Group([rpn_cls_prob, rpn_bbox_loss, cls_prob, bbox_loss, delta_loss, cls_occluded_prob, mx.sym.BlockGrad(rcnn_label),
                               mx.sym.BlockGrad(delta_label), mx.sym.BlockGrad(occluded_label)])
-        #group = mx.sym.Group([rpn_cls_prob, rpn_bbox_loss, cls_prob, bbox_loss, delta_loss, mx.sym.BlockGrad(rcnn_label),
-                              #mx.sym.BlockGrad(delta_label), mx.sym.BlockGrad(occluded_label), mx.sym.BlockGrad(rfcn_cls)])
         self.sym = group
         return group
+
     def get_feat_symbol(self, cfg):
         # config alias for convenient
         num_classes = cfg.dataset.NUM_CLASSES
@@ -1297,16 +1292,11 @@ class resnet_v1_101_manet_rfcn(Symbol):
         cls_occluded_prob = mx.sym.softmax(name='cls_occluded_prob', data=cls_occluded_reshape, axis = 1)
         cls_occluded_slice = mx.sym.SliceChannel(cls_occluded_prob, axis=1, num_outputs=2)
         cls_occluded_weight = mx.sym.Reshape(name='cls_occluded_weight', data = cls_occluded_slice[1], shape=(-1,1,1,1))
-        #occluded_weight_tile = mx.sym.tile(name = 'occluded_weight_tile', reps=(1,num_classes, 1,1), data = cls_occluded_weight)
 
 
         #Estimate the degree of non-rigidity
         ratio = (pred_w+self.eps) / (pred_h+self.eps)
         ratio_nearby = mx.sym.SliceChannel(ratio, axis=0, num_outputs=data_range)
-        #nonrigid = 0.0
-        #for i in range(1, data_range):
-        #nonrigid = nonrigid + mx.sym.abs(ratio_nearby[i] - ratio_nearby[i-1]) * 0.5
-        #nonrigid = nonrigid*1.0 / (data_range-1)
         nonrigid = mx.sym.abs((ratio_nearby[cfg.TEST.KEY_FRAME_INTERVAL+4] - ratio_nearby[cfg.TEST.KEY_FRAME_INTERVAL-4]) * 0.5)
         nonrigid = mx.sym.Reshape(name='nonrigid_reshape', data = nonrigid, shape=(-1,1,1,1))
         motion_weight = (nonrigid + self.eps) / (cls_occluded_weight + self.eps)
@@ -1315,7 +1305,6 @@ class resnet_v1_101_manet_rfcn(Symbol):
 
 
         # combination
-        #cls_score_combine = cls_score_pixel * 0.5 + cls_score_instance * 0.5
         cls_score_combine = cls_score_instance*(1.0-motion_weight_tile) + cls_score_pixel*motion_weight_tile
         cls_score_combine = mx.sym.Reshape(name='cls_score_reshape', data=cls_score_combine, shape=(-1, num_classes))
         cls_prob = mx.sym.SoftmaxActivation(name='cls_prob', data=cls_score_combine)
@@ -1340,39 +1329,15 @@ class resnet_v1_101_manet_rfcn(Symbol):
 
     def init_weight(self, cfg, arg_params, aux_params):
 
-        #arg_params['delta_Convolution_weight'] = mx.random.normal(0, self.get_msra_std(self.arg_shape_dict['delta_Convolution_weight']),
-                                                         #shape=self.arg_shape_dict['delta_Convolution_weight'])
-        #arg_params['delta_Convolution_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['delta_Convolution_bias'])
 
         arg_params['delta_x_ip_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['delta_x_ip_weight'])
         arg_params['delta_x_ip_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['delta_x_ip_bias'])
         arg_params['delta_y_ip_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['delta_y_ip_weight'])
         arg_params['delta_y_ip_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['delta_y_ip_bias'])
 
-        #arg_params['roipooled_delta_x_ip1_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['roipooled_delta_x_ip1_weight'])
-        #arg_params['roipooled_delta_x_ip1_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['roipooled_delta_x_ip1_bias'])
-
-        #arg_params['roipooled_delta_y_ip1_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['roipooled_delta_y_ip1_weight'])
-        #arg_params['roipooled_delta_y_ip1_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['roipooled_delta_y_ip1_bias'])
-
-        #arg_params['roipooled_delta_x_ip2_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['roipooled_delta_x_ip2_weight'])
-        #arg_params['roipooled_delta_x_ip2_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['roipooled_delta_x_ip2_bias'])
-
-        #arg_params['roipooled_delta_y_ip2_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['roipooled_delta_y_ip2_weight'])
-        #arg_params['roipooled_delta_y_ip2_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['roipooled_delta_y_ip2_bias'])
-
         arg_params['feat_conv_3x3_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['feat_conv_3x3_weight'])
         arg_params['feat_conv_3x3_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['feat_conv_3x3_bias'])
 
-        #arg_params['em_conv1_weight'] = mx.random.normal(0, self.get_msra_std(self.arg_shape_dict['em_conv1_weight']),
-                                                         #shape=self.arg_shape_dict['em_conv1_weight'])
-        #arg_params['em_conv1_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['em_conv1_bias'])
-        #arg_params['em_conv2_weight'] = mx.random.normal(0, self.get_msra_std(self.arg_shape_dict['em_conv2_weight']),
-                                                         #shape=self.arg_shape_dict['em_conv2_weight'])
-        #arg_params['em_conv2_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['em_conv2_bias'])
-        #arg_params['em_conv3_weight'] = mx.random.normal(0, self.get_msra_std(self.arg_shape_dict['em_conv3_weight']),
-                                                         #shape=self.arg_shape_dict['em_conv3_weight'])
-        #arg_params['em_conv3_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['em_conv3_bias'])
 
         arg_params['rpn_cls_score_weight'] = mx.random.normal(0, 0.01,
                                                               shape=self.arg_shape_dict['rpn_cls_score_weight'])

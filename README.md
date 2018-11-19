@@ -1,28 +1,25 @@
-# Flow-Guided Feature Aggregation for Video Object Detection
+# Fully Motion-Aware Network for Video Object Detection
 
 
-This repository is implemented by [Yuqing Zhu](https://github.com/jeremy43), [Shuhao Fu](https://github.com/howardmumu), and [Xizhou Zhu](https://github.com/einsiedler0408), when they are interns at MSRA.
+This implementation is a fork of [FGFA](https://github.com/msracver/Flow-Guided-Feature-Aggregation) and extended by [Shiyao Wang](https://github.com/wangshy31) through adding instance-level aggregation and motion pattern reasoning.
 
 ## Introduction
 
 
-**Flow-Guided Feature Aggregation (FGFA)** is initially described in an [ICCV 2017 paper](https://arxiv.org/abs/1703.10025). It provides an accurate and end-to-end learning framework for video object detection. The proposed FGFA method, together with our previous work of [Deep Feature Flow](https://github.com/msracver/Deep-Feature-Flow), powered the winning entry of [ImageNet VID 2017](http://image-net.org/challenges/LSVRC/2017/results). It is worth noting that:
+**Fully Motion-Aware Network for Video Object Detection (MANet)** is initially described in an [ECCV 2018 paper](https://wangshy31.github.io/papers/2-MANet.pdf). It proposes an end-to-end model called fully motion-aware network (MANet), which jointly calibrates the features of objects on both pixel-level and instance-level in a unified framework.
 
-* FGFA improves the per-frame features by aggregating nearby frame features along the motion paths. It significantly improves the object detection accuracy in videos, especially for fast moving objects.
-* FGFA is end-to-end trainable for the task of video object detection, which is vital for improving the recognition accuracy.
-* We proposed to evaluate the detection accuracy for slow, medium and fast moving objects respectively, for better understanding and analysis of video object detection. The [motion-specific evaluation code](lib/dataset/imagenet_vid_eval_motion.py) is included in this repository.
+The contributions of this paper include:
 
-***Click image to watch our demo video***
+* propose an instance-level feature calibration method by learning instance movements through time. The instance-level calibration is more robust to occlusions and outperforms pixel-level feature calibration.
 
-[![Demo Video on YouTube](https://media.giphy.com/media/7D9tmDgzB10HK/giphy.gif)](https://www.youtube.com/watch?v=R2h3DbTPvVg)
+* develop a motion pattern reasoning module to dynamically combine pixel-level and instance-level calibration according to the motion.
 
-***Example object instances with slow, medium and fast motions***
+* demonstrate the MANet on the large-scale [ImageNet VID dataset](http://image-net.org/challenges/LSVRC/) with state-of-the-art performance.
 
-![Instance Motion](instance_motion.png)
 
 ## Disclaimer
 
-This is an official implementation for [Flow-Guided Feature Aggregation for Video Recognition](https://arxiv.org/abs/1703.10025) (FGFA) based on MXNet. It is worth noticing that:
+This implementation is based on MXNet. It is worth noticing that:
 
   * The original implementation is based on our internal Caffe version on Windows. There are slight differences in the final accuracy and running time due to the plenty details in platform switch.
   * One-phase training is performed on the mixture of ImageNet DET+VID, instead of two-phase training as in the original paper (on ImageNet DET first, followed by ImageNet VID).
@@ -40,19 +37,14 @@ This is an official implementation for [Flow-Guided Feature Aggregation for Vide
 
 If you find Flow-Guided Feature Aggregation useful in your research, please consider citing:
 ```
-@inproceedings{zhu17fgfa,
-    Author = {Xizhou Zhu, Yujie Wang, Jifeng Dai, Lu Yuan, Yichen Wei},
-    Title = {Flow-Guided Feature Aggregation for Video Object Detection},
-    Conference = {ICCV},
-    Year = {2017}
+@inproceedings{wang2018fully,
+    Author = {Wang, Shiyao and Zhou, Yucong and Yan, Junjie and Deng, Zhidong},
+    Title = {Fully Motion-Aware Network for Video Object Detection},
+    booktitle={Proceedings of the European Conference on Computer Vision (ECCV)},
+    pages={542--557},
+    Year = {2018}
 }
 
-@inproceedings{dai16rfcn,
-    Author = {Jifeng Dai, Yi Li, Kaiming He, Jian Sun},
-    Title = {{R-FCN}: Object Detection via Region-based Fully Convolutional Networks},
-    Conference = {NIPS},
-    Year = {2016}
-}
 ```
 
 ## Main Results
