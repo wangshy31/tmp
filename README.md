@@ -42,7 +42,7 @@ The contributions of this paper include:
    git submodule update
    ```
 
-   We also provide a [repo]() that contains mxnet configured as required.
+   We also provide a [repo](https://github.com/wangshy31/mxnet.git) that contains mxnet configured as required.
 
    4.2 Copy operators in `$(MANet_ROOT)/manet_rfcn/operator_cxx` to `$(YOUR_MXNET_FOLDER)/src/operator/contrib` by
 
