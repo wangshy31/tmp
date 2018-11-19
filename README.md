@@ -112,7 +112,7 @@ The contributions of this paper include:
 
 1. We conduct an ablation study so as to validate the effectiveness of the proposed network.
 
-![ablation study](images/table2.png)
+![ablation study](images/table2.png=100*200)
 
 *Detection accuracy of slow (motion IoU > 0.9), medium (0.7 ≤ motion IoU ≤ 0.9), and fast (motion IoU < 0.7) moving object instances.*
 
