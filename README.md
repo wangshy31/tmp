@@ -128,7 +128,7 @@ The contributions of this paper include:
 
 
 ## Download Trained Models
-You can download the trained MANet from [](). It can achieve 78.03% mAP without sequence-level post-processing (e.g., SeqNMS).
+You can download the trained MANet from [drive](https://drive.google.com/file/d/1tKFfOKaFUeZanKTCCwVw-xaKu0wAw71t/view?usp=sharing). It can achieve 78.03% mAP without sequence-level post-processing (e.g., SeqNMS).
 
 
 

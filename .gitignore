@@ -92,11 +92,7 @@ lib/nms/*.cpp
 external
 output
 model
-<<<<<<< HEAD
 data
 demo
-=======
-*/.ropeproject/
->>>>>>> combine
 
 .db
