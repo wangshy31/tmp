@@ -1,1 +1,0 @@
-python experiments/manet_rfcn/manet_rfcn_end2end_train_test.py --cfg experiments/manet_rfcn/cfgs/resnet_v1_101_flownet_imagenet_vid_rfcn_end2end_ohem.yaml
