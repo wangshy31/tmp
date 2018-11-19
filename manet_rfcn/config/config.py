@@ -68,6 +68,8 @@ config.TRAIN.begin_epoch = 0
 config.TRAIN.end_epoch = 0
 config.TRAIN.model_prefix = ''
 
+# whether predict occlusion
+config.TRAIN.USE_OCCLUSION = False
 # whether resume training
 config.TRAIN.RESUME = False
 # whether flip image

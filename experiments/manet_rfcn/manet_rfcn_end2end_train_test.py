@@ -1,9 +1,9 @@
 # --------------------------------------------------------
-# Deformable Convolutional Networks
-# Copyright (c) 2017 Microsoft
-# Licensed under The Apache-2.0 License [see LICENSE for details]
-# Written by Yuwen Xiong
+# Fully Motion-Aware Network for Video Object Detection
+# Extend FGFA by adding instance-level aggregation and motion pattern reasoning
+# Modified by Shiyao Wang
 # --------------------------------------------------------
+
 import os
 import sys
 os.environ['PYTHONUNBUFFERED'] = '1'
