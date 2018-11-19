@@ -114,11 +114,17 @@ The contributions of this paper include:
 
 ![ablation study](images/table2.png)
 
-*Detection accuracy of slow (motion IoU > 0.9), medium (0.7 ≤ motion IoU ≤ 0.9), and fast (motion IoU < 0.7) moving object instances.*
+**Table 1**. Accuracy of different methods on ImageNet VID validation, using ResNet-101 feature extraction networks. Detection accuracy of slow (motion IoU > 0.9), medium (0.7 ≤ motion IoU ≤ 0.9), and fast (motion IoU < 0.7) moving object instances.
 
 2. We attempt to take a deeper look at detection results and prove that two calibrated features have respective strengths.
 
 ![visualization](images/table3.png)
+
+**Figure 1**. Visualization of two typical examples: occluded and non-rigid objects. They show respective strengths of the two calibration methods.
+
+![statisticalanalysis](images/table4.png)
+
+**Table 2**. Statistical analysis on different validation sets. The instance-level calibration is better when objects are occluded or move more regularly while the pixel-level calibration performs well on non-rigid motion. Combination of these two module can achieve best performance.
 
 
 ## Download Trained Models
