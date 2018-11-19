@@ -3,6 +3,8 @@
 
 This implementation is a fork of [FGFA](https://github.com/msracver/Flow-Guided-Feature-Aggregation) and extended by [Shiyao Wang](https://github.com/wangshy31) through adding instance-level aggregation and motion pattern reasoning.
 
+
+
 ## Introduction
 
 **Fully Motion-Aware Network for Video Object Detection (MANet)** is initially described in an [ECCV 2018 paper](https://wangshy31.github.io/papers/2-MANet.pdf). It proposes an end-to-end model called fully motion-aware network (MANet), which jointly calibrates the features of objects on both pixel-level and instance-level in a unified framework.
@@ -12,6 +14,8 @@ The contributions of this paper include:
 * Propose an instance-level feature calibration method by learning instance movements through time. The instance-level calibration is more robust to occlusions and outperforms pixel-level feature calibration.
 * Develop a motion pattern reasoning module to dynamically combine pixel-level and instance-level calibration according to the motion.
 * Demonstrate the MANet on the large-scale [ImageNet VID dataset](http://image-net.org/challenges/LSVRC/) with state-of-the-art performance.
+
+
 
 ## Installation
 
@@ -57,6 +61,7 @@ The contributions of this paper include:
    ```
 
 
+
 ## Preparation for Training & Testing
 
 **For data processing**: 
@@ -94,7 +99,7 @@ The contributions of this paper include:
 2. To perform experiments, run the python script with the corresponding config file as input. For example, to train and test MANet with R-FCN, use the following command
 
    ```
-   python experiments/fgfa_rfcn/fgfa_rfcn_end2end_train_test.py --cfg script/train/phase-1/resnet_v1_101_flownet_imagenet_vid_rfcn_end2end_ohem.yaml
+   ./run.sh
    ```
 
    A cache folder would be created automatically to save the model and the log under 
@@ -102,6 +107,12 @@ The contributions of this paper include:
    `imagenet_vid/`.
 
 3. Please find more details in config files and in our code.
+
+
+## Download Trained Models
+You can download the trained MANet from [](). It can achieve 78.03% mAP without sequence-level post-processing (e.g., SeqNMS).
+
+
 
 ## Citing MANet
 
@@ -119,7 +130,9 @@ If you find Fully Motion-Aware Network for Video Object Detection useful in your
 
 ## Main Results
 
-
+![ablation study](images/table2.png) 
+![visualization](images/table3.png) 
+![comparison](images/table4.png) 
 
 *Detection accuracy of slow (motion IoU > 0.9), medium (0.7 ≤ motion IoU ≤ 0.9), and fast (motion IoU < 0.7) moving object instances.*
 
