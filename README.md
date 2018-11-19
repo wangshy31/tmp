@@ -130,11 +130,16 @@ If you find Fully Motion-Aware Network for Video Object Detection useful in your
 
 ## Main Results
 
+1. We conduct an ablation study so as to validate the effectiveness of the proposed network.
 ![ablation study](images/table2.png) 
+*Detection accuracy of slow (motion IoU > 0.9), medium (0.7 ≤ motion IoU ≤ 0.9), and fast (motion IoU < 0.7) moving object instances.*
+
+2. We attempt to take a deeper look at detection results and prove that two calibrated features have respective strengths.
 ![visualization](images/table3.png) 
+
+3. We compare our model to the existing state-of-the-art methods which can be divided into two groups: end-to-end learned feature methods [2, 30, 13, 31] and post-processing based methods [15, 14, 5]
 ![comparison](images/table4.png) 
 
-*Detection accuracy of slow (motion IoU > 0.9), medium (0.7 ≤ motion IoU ≤ 0.9), and fast (motion IoU < 0.7) moving object instances.*
 
 
 
